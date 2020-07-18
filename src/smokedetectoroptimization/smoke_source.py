@@ -8,6 +8,7 @@ import io
 
 from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE)
 from .functions import convert_to_spherical_from_points
+from .visualization import visualize_time_to_alarm
 
 
 class SmokeSource():
@@ -128,31 +129,35 @@ class SmokeSource():
             xs = self.xs.copy()
             ys = self.ys.copy()
             zs = None
+            axis_labels = ("x locations", "y locations")
         elif method == "yz":
             xs = self.ys.copy()
             ys = self.zs.copy()
             zs = None
+            axis_labels = ("y locations", "z locations")
         elif method == "xz":
             xs = self.xs.copy()
             ys = self.zs.copy()
             zs = None
+            axis_labels = ("x locations", "z locations")
         elif method == "xyz":
             xs = self.xs.copy()
             ys = self.ys.copy()
             zs = self.zs.copy()
+            axis_labels = ("x locations", "y locations", "z locations")
         elif method == "phi_theta":
             xs, ys = convert_to_spherical_from_points(self.xs, self.ys,
                                                       self.zs)
             zs = None
+            axis_labels = ("phi locations", "theta locations")
         else:
             raise ValueError(f"method {method} wasn't valid")
 
         if visualize:
-            raise NotImplementedError("Visualization is not yet supported")
-            # self.visualize_time_to_alarm(
-            #    xs, ys, time_to_alarm, num_samples=num_samples,
-            #    concentrations=concentrations, spherical=spherical_projection,
-            #    write_figs=write_figs)
+            visualize_time_to_alarm(
+                xs, ys, zs, time_to_alarm, num_samples=num_samples,
+                concentrations=concentrations, axis_labels=axis_labels,
+                write_figs=write_figs)
 
         return (xs, ys, zs, time_to_alarm)
 

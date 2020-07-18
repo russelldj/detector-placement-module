@@ -8,11 +8,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
+from matplotlib import cm
+import pyvista as pv
 
-from .constants import (PLOT_TITLES, BIG_NUMBER, ALARM_THRESHOLD,
-                        PAPER_READY, SMOOTH_PLOTS)
+from .constants import (PAPER_READY, PLOT_TITLES, SMOOTH_PLOTS)
 from .functions import normalize
-matplotlib.use('module://ipykernel.pylab.backend_inline')
+
+
+# matplotlib.use('module://ipykernel.pylab.backend_inline')
 
 
 def show_optimization_statistics(vals, iterations, locs):
@@ -73,9 +76,9 @@ def plot_sphere(phi, theta, cs, r=1):
     pdb.set_trace()
 
 
-def visualize_3D(XYZ_locs, smoke_source, final_locations,
-                 label="3D visualization of the time to alarm",
-                 fraction=0.05):
+def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
+                            label="3D visualization of the time to alarm",
+                            fraction=0.05):
     """
     XYZ_locs : (X, Y, Z)
         The 3D locations of the points
@@ -86,9 +89,8 @@ def visualize_3D(XYZ_locs, smoke_source, final_locations,
     fraction : float
         how much of the points to visualize
     """
-    matplotlib.use('TkAgg')
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
+    _, ax = visualize_3D(XYZ_locs, smoke_source[2], label=label,
+                         fraction=fraction)
     # TODO see if there is a workaround to get equal aspect
     # Unpack
     X, Y, Z = XYZ_locs
@@ -119,32 +121,79 @@ def visualize_3D(XYZ_locs, smoke_source, final_locations,
     plt.show()
 
 
-def visualize_time_to_alarm(self, X, Y, time_to_alarm, num_samples,
+def visualize_3D(XYZ_locs, time_to_alarm,
+                 label="3D visualization of the time to alarm",
+                 fraction=0.05, show=True):
+    """
+    XYZ_locs : (X, Y, Z)
+        The 3D locations of the points
+    time_to_alarm : ArrayLike[Floats]
+        How long it takes for each point to alarm
+    fraction : float
+        how much of the points to visualize
+    show : bool
+        Don't show so more information can be added
+    """
+    pdb.set_trace()
+    matplotlib.use('TkAgg')
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    # TODO see if there is a workaround to get equal aspect
+    # Unpack
+    X, Y, Z = XYZ_locs
+    num_points = len(X)  # could be len(Y) or len(Z)
+    sample_points = np.random.choice(num_points,
+                                     size=(int(num_points * fraction),))
+    cb = ax.scatter(X[sample_points], Y[sample_points], Z[sample_points],
+                    c=time_to_alarm[sample_points], cmap=cm.inferno, linewidths=1)
+    plt.colorbar(cb)
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    ax.set_label(label)
+    if show:
+        plt.show()
+    return fig, ax
+
+
+def visualize_time_to_alarm(X, Y, Z, time_to_alarm, num_samples,
                             concentrations, num_samples_visualized=10,
                             smoothed=SMOOTH_PLOTS, spherical=True,
-                            write_figs=PAPER_READY):
-    cb = self.pmesh_plot(
-        X,
-        Y,
-        time_to_alarm,
-        plt,
-        num_samples=70, smooth=smoothed,
-        cmap=mpl.cm.inferno)  # choose grey to plot color over
+                            write_figs=PAPER_READY,
+                            axis_labels=("x location", "y location")):
+    """
+    show the time to alarm plots
+    """
+    if Z is None:
+        cb = pmesh_plot(
+            X,
+            Y,
+            time_to_alarm,
+            plt,
+            num_samples=70, smooth=smoothed,
+            cmap=mpl.cm.inferno)  # choose grey to plot color over
 
-    plt.colorbar(cb)  # Add a colorbar to a plot
-    if spherical:
-        plt.xlabel(r'$\theta$')
-        plt.ylabel(r'$\phi$')
+        plt.colorbar(cb)  # Add a colorbar to a plot
+        plt.xlabel(axis_labels[0])
+        plt.ylabel(axis_labels[1])
+        if write_figs:
+            if smoothed:
+                plt.savefig("vis/TimeToAlarmSmoothed.png")
+            else:
+                plt.savefig("vis/TimeToAlarmDots.png")
+        plt.show()
     else:
-        plt.xlabel("x location")
-        plt.ylabel("y location")
-    if write_figs:
-        if smoothed:
-            plt.savefig("vis/TimeToAlarmSmoothed.png")
-        else:
-            plt.savefig("vis/TimeToAlarmDots.png")
-    plt.show()
-    cb = self.pmesh_plot(
+        visualize_3D((X, Y, Z), time_to_alarm)
+
+
+def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,
+                                            num_samples, concentrations,
+                                            num_samples_visualized=10,
+                                            smoothed=SMOOTH_PLOTS,
+                                            write_figs=PAPER_READY,
+                                            axis_labels=("x location",
+                                                         "y location")):
+    cb = pmesh_plot(
         X,
         Y,
         time_to_alarm,
@@ -256,7 +305,7 @@ def pmesh_plot(
                 norm = mpl.colors.Normalize()  # default
 
         # TODO see if this can be added for the non-smooth case
-        if is3d:
+        if is_3d:
             plt.cla()
             plt.clf()
             plt.close()
