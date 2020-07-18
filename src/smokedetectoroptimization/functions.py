@@ -1,8 +1,9 @@
 import numpy as np
 from scipy.interpolate import griddata
 import pdb
-from SDOptimizer.constants import INTERPOLATION_METHOD
-from SDOptimizer.constants import *
+
+from .constants import INTERPOLATION_METHOD
+from .constants import *
 
 
 def make_location_objective(masked):

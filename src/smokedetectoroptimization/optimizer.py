@@ -28,20 +28,18 @@ __license__ = "mit"
 _logger = logging.getLogger(__name__)
 
 
-def fib(n):
-    """Fibonacci example function
+def make_objective(smoke_sources, method=""):
+    """
 
     Args:
-      n (int): integer
+      smoke_sources List[Tuple[List[Float]]]: integer
 
     Returns:
       int: n-th Fibonacci number
     """
-    assert n > 0
-    a, b = 1, 1
-    for i in range(n-1):
-        a, b = b, a+b
-    return a
+
+
+def get_time_to_alarm(data_file, )
 
 
 def parse_args(args):
