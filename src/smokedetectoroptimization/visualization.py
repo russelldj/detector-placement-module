@@ -1,4 +1,5 @@
 import pdb
+import warnings
 from mpl_toolkits import mplot3d
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
@@ -89,10 +90,10 @@ def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
     fraction : float
         how much of the points to visualize
     """
-    _, ax = visualize_3D(XYZ_locs, smoke_source[2], label=label,
-                         fraction=fraction)
-    # TODO see if there is a workaround to get equal aspect
-    # Unpack
+    warnings.warn("Untested: may give spurious results.")
+    # TODO update this to accomodate the new smoke sources
+    plotter = visualize_3D(XYZ_locs, smoke_source[2], label=label)
+
     X, Y, Z = XYZ_locs
     x, y, time_to_alarm = smoke_source
     xy = np.hstack((np.expand_dims(x, axis=1), np.expand_dims(y, axis=1)))
@@ -105,25 +106,15 @@ def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
         closest_X = X[min_loc]
         closest_Y = Y[min_loc]
         closest_Z = Z[min_loc]
-        ax.scatter(closest_X, closest_Y, closest_Z,
-                   s=200, c='chartreuse', linewidths=0)
-    num_points = len(X)  # could be len(Y) or len(Z)
-    sample_points = np.random.choice(num_points,
-                                     size=(int(num_points * fraction),))
-    cb = ax.scatter(X[sample_points], Y[sample_points], Z[sample_points],
-                    c=time_to_alarm[sample_points], cmap=cm.inferno, linewidths=1)
-    plt.colorbar(cb)
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-    print(label)
-    ax.set_label(label)
-    plt.show()
+        closest_XYZ = np.stack((closest_X, closest_Y, closest_Z), axis=1)
+        highlights = pv.PolyData(closest_XYZ)
+        plotter.add_mesh(highlights)
+
+    plotter.show()
 
 
 def visualize_3D(XYZ_locs, time_to_alarm,
-                 label="3D visualization of the time to alarm",
-                 fraction=0.05, show=True):
+                 label="3D visualization of the time to alarm", show=True):
     """
     XYZ_locs : (X, Y, Z)
         The 3D locations of the points
@@ -134,26 +125,15 @@ def visualize_3D(XYZ_locs, time_to_alarm,
     show : bool
         Don't show so more information can be added
     """
-    pdb.set_trace()
-    matplotlib.use('TkAgg')
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    # TODO see if there is a workaround to get equal aspect
-    # Unpack
-    X, Y, Z = XYZ_locs
-    num_points = len(X)  # could be len(Y) or len(Z)
-    sample_points = np.random.choice(num_points,
-                                     size=(int(num_points * fraction),))
-    cb = ax.scatter(X[sample_points], Y[sample_points], Z[sample_points],
-                    c=time_to_alarm[sample_points], cmap=cm.inferno, linewidths=1)
-    plt.colorbar(cb)
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-    ax.set_label(label)
+    plotter = pv.Plotter()
+    XYZ = np.stack(XYZ_locs, axis=1)
+    mesh = pv.PolyData(XYZ)
+    # This will colormap the values
+    plotter.add_mesh(mesh, scalars=time_to_alarm,  stitle='Time to alarm')
+    # Don't show so other data can be added easily
     if show:
-        plt.show()
-    return fig, ax
+        plotter.show(screenshot="vis.png")
+    return plotter
 
 
 def visualize_time_to_alarm(X, Y, Z, time_to_alarm, num_samples,
@@ -316,7 +296,8 @@ def pmesh_plot(
             plt.show()
         else:
             cb = plotter.pcolormesh(
-                xis, yis, reshaped_interpolated, cmap=cmap, norm=norm)
+                xis, yis, reshaped_interpolated, cmap=cmap, norm=norm,
+                shading="nearest")
     else:  # Not smooth
         # Just do a normal scatter plot
         cb = plotter.scatter(xs, ys, c=values, cmap=cmap)

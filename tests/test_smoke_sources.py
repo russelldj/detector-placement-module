@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+import pdb
+
 from smokedetectoroptimization.smoke_source import SmokeSource
 
 __author__ = "David Russell"
