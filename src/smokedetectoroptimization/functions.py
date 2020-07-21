@@ -139,6 +139,8 @@ def make_single_objective_function(
     """
     # Create data which will be used inside of the function to be returned
     funcs = []
+    # The number of points parametrizing the space
+    dimensionality = 2
     for source in sources:
         # create all of the functions mapping from a location to a time
         # This is notationionally dense but I think it is worthwhile
@@ -149,44 +151,51 @@ def make_single_objective_function(
         Z = source["zs"]
         time_to_alarm = source["time_to_alarm"]
         # TODO assert that you get the same thing per source
-        if Z is None:
-            # This is if we're only optimizing over two location variables per detector
-            funcs.append(make_lookup(X, Y, time_to_alarm,
-                                     interpolation_method=interpolation_method))
-        else:
-            # Three location variables per detector
-            funcs.append(make_lookup(X, Y, time_to_alarm, Z=Z,
-                                     interpolation_method=interpolation_method))
+        if Z is not None:
+            dimensionality = 3
+            logging.warning("3D may not yet be supported fully")
 
-    def ret_func(xys):
+        funcs.append(make_lookup(X, Y, time_to_alarm, Z=Z,
+                                 interpolation_method=interpolation_method))
+
+    def ret_func(locations):
         """
         xys : ArrayLike
+            Could also be xyz
             Represents the x, y location of each of the smoke detectors as [x1, y1, x2, y2]
             could also be the [x, y, on, x, y, on,...] but masked should be specified in make_total_lookup_function
         -----returns-----
         worst_source : Float
             The objective function for the input
         """
-        all_times = []  # each internal list coresponds to a smoke detector location
+        # TODO this needs to be refactored
         if masked:
-            some_on = False
-            for i in range(0, len(xys), 3):
-                x, y, on = xys[i:i+3]
-                if on[0]:  # don't evaluate a detector which isn't on, on is really a list of length 1
-                    all_times.append([])
-                    some_on = True
-                    for func in funcs:
-                        all_times[-1].append(func([x, y]))
-            all_times = np.asarray(all_times)
-            if not some_on:  # This means that no sources were turned on
-                return BIG_NUMBER
+            vars_per_detector = dimensionality + 1
         else:
-            for i in range(0, len(xys), 2):
+            vars_per_detector = dimensionality
+
+        all_times = []  # each internal list coresponds to a smoke detector location
+
+        for i in range(0, len(locations), vars_per_detector):
+            detector_vars = locations[i:i+vars_per_detector]
+            # The mask variable is the last one in the list for the detector
+            # and it is itself a list of one boolean value, which must be
+            # extracted
+            if not masked or detector_vars[0][0]:
                 all_times.append([])
-                x, y = xys[i:i+2]
                 for func in funcs:
-                    all_times[-1].append(func([x, y]))
-            all_times = np.asarray(all_times)
+                    if masked:
+                        # don't include the mask variable
+                        all_times[-1].append(func(detector_vars[:-1]))
+                    else:
+                        # include all variables
+                        all_times[-1].append(func(detector_vars))
+
+        if len(all_times) == 0:  # This means that no sources were turned on
+            return BIG_NUMBER
+
+        all_times = np.asarray(all_times)
+
         if function_type == "worst_case":
             time_for_each_source = np.amin(all_times, axis=0)
             worst_source = np.amax(time_for_each_source)

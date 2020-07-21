@@ -221,6 +221,7 @@ def make_bounds(bounds, sources, num_detectors):
         Y = sources[0]["ys"]
         Z = sources[0]["zs"]
         bounds = [(np.min(X), np.max(X)), (np.min(Y), np.max(Y))]
+
         if Z is not None:
             bounds.append(([np.min(Z), np.max(Z)]))
 
