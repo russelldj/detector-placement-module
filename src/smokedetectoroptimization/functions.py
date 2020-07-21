@@ -1,8 +1,14 @@
 import numpy as np
 from scipy.interpolate import griddata
 import pdb
+import warnings
+import logging
 
-from .constants import INTERPOLATION_METHOD
+from platypus import (NSGAII, Problem, Real, Binary, CompoundOperator,
+                      SBX, HUX, PM, BitFlip)
+
+from .constants import (INTERPOLATION_METHOD, BIG_NUMBER,
+                        SINGLE_OBJECTIVE_FUNCTIONS, MULTI_OBJECTIVE_FUNCTIONS)
 from .constants import *
 
 
@@ -79,10 +85,37 @@ def make_lookup(X, Y, time_to_alarm, Z=None, interpolation_method=INTERPOLATION_
     return ret_func
 
 
-def make_total_lookup_function(
-        xytimes,
+def make_objective_function(
+        sources,
+        function_type="worst_case",
+        interpolation_method="nearest",
+        bad_sources=None,
+        bounds=None):
+    """A simple wrapper to just check what type to make"""
+
+    # This should now work properly for single objective functions
+    if function_type in SINGLE_OBJECTIVE_FUNCTIONS:
+        objective_function = make_single_objective_function(
+            sources,
+            function_type=function_type,
+            interpolation_method=interpolation_method)
+    elif function_type in MULTI_OBJECTIVE_FUNCTIONS:
+        objective_function = make_multiobjective_function(
+            sources,
+            bounds=bounds,
+            function_type=function_type,
+            interpolation_method=interpolation_method,
+            bad_sources=bad_sources)
+    else:
+        raise ValueError(f"function type {function_type} not valid")
+
+    return objective_function
+
+
+def make_single_objective_function(
+        sources,
         verbose=False,
-        type="worst_case",
+        function_type="worst_case",
         masked=False,
         interpolation_method="nearest"):
     """
@@ -106,7 +139,7 @@ def make_total_lookup_function(
     """
     # Create data which will be used inside of the function to be returned
     funcs = []
-    for xytime in xytimes:
+    for xytime in sources:
         # create all of the functions mapping from a location to a time
         # This is notationionally dense but I think it is worthwhile
         # We are creating a list of functions for each of the smoke sources
@@ -151,33 +184,55 @@ def make_total_lookup_function(
                 for func in funcs:
                     all_times[-1].append(func([x, y]))
             all_times = np.asarray(all_times)
-        if type == "worst_case":
+        if function_type == "worst_case":
             time_for_each_source = np.amin(all_times, axis=0)
             worst_source = np.amax(time_for_each_source)
             ret_val = worst_source
-        elif type == "second":
+        elif function_type == "second":
             time_for_each_source = np.amin(all_times, axis=0)
             second_source = np.sort(time_for_each_source)[1]
             ret_val = second_source
-        elif type == "softened":
-            time_for_each_source = np.amin(all_times, axis=0)
-            sorted = np.sort(time_for_each_source)[1]
-            ALPHA = 0.3
-            ret_val = (sorted[0] + ALPHA * sorted[1]) / (1 + ALPHA)
-        elif type == "fastest":
+        elif function_type == "fastest":
             # print(all_times)
             # this just cares about the source-detector pair that alarms fastest
             ret_val = np.amin(all_times)
         else:
-            raise ValueError("type is : {} which is not included".format(type))
+            raise ValueError(f"type is : {function_type} which is not included")
         if verbose:
-            print("all of the times are {}".format(all_times))
-            print("The quickest detction for each source is {}".format(
-                time_for_each_source))
+            print(f"all of the times are {all_times}")
             print(
-                "The slowest-to-be-detected source takes {}".format(worst_source))
+                f"The quickest detction for each source is {time_for_each_source}")
+            print(f"The slowest-to-be-detected source takes {worst_source}")
         return ret_val
     return ret_func
+
+
+def make_multiobjective_function(sources,
+                                 bounds=None,
+                                 function_type="worst_case",
+                                 interpolation_method="nearest",
+                                 bad_sources=None):
+    """Make the multiobjective function"""
+
+    if function_type == "multiobjective_counting":
+        problem = make_multiobjective_function_counting(
+            sources, bounds=bounds, interpolation_method=interpolation_method)
+        # algorithm = NSGAII(
+        #    problem, variator=CompoundOperator(  # TODO look further into this
+        #        SBX(), HUX(), PM(), BitFlip()))
+    elif function_type == "multiobjective_competing":
+        if bad_sources is None:
+            raise ValueError(
+                "specify bad_sources for multiobjective_competing")
+        problem = make_multiobjective_function_competing(
+            sources, bounds=bounds, bad_sources=bad_sources,
+            interpolation_method=interpolation_method)  # TODO remove this
+        # algorithm = NSGAII(problem)
+    else:
+        raise ValueError(
+            "The type : {} was not valid".format(function_type))
+
+    return problem
 
 
 def convert_to_spherical_from_points(X, Y, Z):
@@ -231,3 +286,82 @@ def spherical_to_xyz(elev_az):
     z = np.cos(phi)
     xyz = np.vstack((x, y, z))
     return xyz.transpose()
+
+
+def make_multiobjective_function_competing(
+        sources, bounds=None, bad_sources=(), interpolation_method="nearest"):
+    """Create an objective function with a false alarm"""
+
+    # Create the two functions
+    objective_function = make_single_objective_function(
+        sources, interpolation_method=interpolation_method)  # the function to be optimized
+    bad_objective_function = make_single_objective_function(
+        bad_sources, function_type="fastest",
+        interpolation_method=interpolation_method)  # the function to be optimized
+
+    def multiobjective_func(x):  # this is the double objective function
+        return [objective_function(x), bad_objective_function(x)]
+
+    num_inputs = len(sources) * 2  # there is an x, y for each source
+    NUM_OUPUTS = 2  # the default for now
+    # define the demensionality of input and output spaces
+    problem = Problem(num_inputs, NUM_OUPUTS)
+
+    min_x = bounds[0][0]
+    min_y = bounds[0][1]
+    max_x = bounds[1][0]
+    max_y = bounds[1][1]
+    print(
+        "min x : {}, max x : {}, min y : {}, max y : {}".format(
+            min_x,
+            max_x,
+            min_y,
+            max_y))
+
+    problem.types[::2] = Real(min_x, max_x)  # This is the feasible region
+    problem.types[1::2] = Real(min_y, max_y)
+    problem.function = multiobjective_func
+    # the second function should be maximized rather than minimized
+    problem.directions[1] = Problem.MAXIMIZE
+    return problem
+
+
+def make_multiobjective_function_counting(
+        sources, bounds, times_more_detectors=1,
+        interpolation_method="nearest"):
+    """
+    This balances the number of detectors with the quality of the outcome
+    bounds : list[(x_min, x_max), (y_min, y_max), ...]
+        The bounds on the feasible region
+    """
+    objective_function = make_single_objective_function(
+        sources, interpolation_method=interpolation_method, masked=True)  # the function to be optimized
+    counting_function = make_counting_objective()
+
+    def multiobjective_func(x):  # this is the double objective function
+        return [objective_function(x), counting_function(x)]
+    # there is an x, y, and a mask for each source so there must be three
+    # times more input variables
+    # the upper bound on the number of detectors n times the number of
+    # sources
+    num_inputs = len(sources) * 3 * times_more_detectors
+    NUM_OUPUTS = 2  # the default for now
+    # define the demensionality of input and output spaces
+    problem = Problem(num_inputs, NUM_OUPUTS)
+
+    min_x = bounds[0][0]
+    min_y = bounds[0][1]
+    max_x = bounds[1][0]
+    max_y = bounds[1][1]
+    print(
+        "min x : {}, max x : {}, min y : {}, max y : {}".format(
+            min_x,
+            max_x,
+            min_y,
+            max_y))
+    problem.types[0::3] = Real(min_x, max_x)  # This is the feasible region
+    problem.types[1::3] = Real(min_y, max_y)
+    # indicator on whether the source is on
+    problem.types[2::3] = Binary(1)
+    problem.function = multiobjective_func
+    return problem

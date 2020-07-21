@@ -1,5 +1,6 @@
 import pdb
 import warnings
+import logging
 from mpl_toolkits import mplot3d
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
@@ -302,3 +303,131 @@ def pmesh_plot(
         # Just do a normal scatter plot
         cb = plotter.scatter(xs, ys, c=values, cmap=cmap)
     return cb  # return the colorbar
+
+
+def visualize_slices(
+        objective_func,
+        optimized_detectors,
+        bounds,
+        max_val=None,
+        num_samples=30,
+        verbose=False,
+        is_3d=False,
+        log=False):
+    """
+    The goal is to do a sweep with each of the detectors leaving the others fixed
+
+    bounds [(x_low, x_high), (y_low, y_high), ....]
+    """
+    if is_3d:
+        logging.error("Cannot visualize 3D data")
+        return None
+
+    logging.warn("Begining to visualize slices. May take a while")
+
+    # set up the sampling locations
+
+    (x_low, x_high), (y_low, y_high) = bounds[:2]
+    xs = np.linspace(x_low, x_high, num_samples)
+    ys = np.linspace(y_low, y_high, num_samples)
+    grid_xs, grid_ys = np.meshgrid(xs, ys)
+    grid_xs = grid_xs.flatten()
+    grid_ys = grid_ys.flatten()
+    # This is a (n, 2) where each row is a point
+    grid = np.vstack((grid_xs, grid_ys)).transpose()
+
+    # TODO get rid of is_3d
+    # make this work with 3D
+    f, ax = get_square_axis(len(optimized_detectors) / 2, is_3d=is_3d)
+
+    num_samples = grid.shape[0]
+    for i in range(0, len(optimized_detectors), 2):
+        selected_detectors = np.concatenate(
+            (optimized_detectors[:i], optimized_detectors[(i + 2):]), axis=0)  # get all but one
+
+        repeated_selected = np.tile(np.expand_dims(
+            selected_detectors, axis=0), reps=(num_samples, 1))
+        locations = np.concatenate((grid, repeated_selected), axis=1)
+
+        times = [objective_func(xys) for xys in locations]
+        if isinstance(ax, np.ndarray):  # ax may be al
+            which_plot = ax[int(i / 2)]
+        else:
+            which_plot = ax
+
+        cb = pmesh_plot(
+            grid_xs,
+            grid_ys,
+            times,
+            which_plot,
+            max_val,
+            log=log)
+
+        fixed = which_plot.scatter(
+            selected_detectors[::2], selected_detectors[1::2], c='w', edgecolors='k')
+
+        if verbose:
+            which_plot.legend([fixed], ["the fixed detectors"])
+            which_plot.set_xlabel("x location")
+            which_plot.set_ylabel("y location")
+
+    plt.colorbar(cb, ax=ax[-1])
+    if PAPER_READY:
+        # write out the number of sources
+        plt.savefig(
+            "vis/DetectorSweeps{:02d}Sources.png".format(
+                int(len(optimized_detectors) / 2)))
+    f.suptitle("The effects of sweeping one detector with all other fixed")
+    plt.show()
+
+
+def visualize_sources(sources, final_locations):
+    """
+    sources : [(X, Y, Z, time_to_alarm), ...]
+    final_locations : [x1, y1, x2, y2, ....]
+    """
+    if sources[0][2] is not None:
+        logging.error("cannot visualize 3D source")
+        return -1
+
+    f, ax = get_square_axis(len(sources))
+    max_time_to_alarm = 0
+    for i, (x, y, z, time_to_alarm) in enumerate(sources):
+        # record this for later plotting
+        # TODO figure out if this is really required
+        max_time_to_alarm = max(max_time_to_alarm, max(time_to_alarm))
+        cb = pmesh_plot(x, y, time_to_alarm, ax[i])
+        for j in range(0, len(final_locations), 2):
+            detectors = ax[i].scatter(final_locations[j],
+                                      final_locations[j + 1],
+                                      c='w', edgecolors='k')
+            ax[i].legend([detectors], ["optimized detectors"])
+    f.colorbar(cb)
+    if PAPER_READY:
+        plt.savefig("vis/TimeToAlarmComposite.png")
+    f.suptitle("The time to alarm for each of the smoke sources")
+    plt.show()
+    return max_time_to_alarm
+
+
+def get_square_axis(num, is_3d=False):
+    """
+    arange subplots in a rough square based on the number of inputs
+    """
+    if num == 1:
+        if is_3d:
+            f, ax = plt.subplots(1, 1, projection='3d')
+        else:
+            f, ax = plt.subplots(1, 1)
+
+        ax = np.asarray([ax])
+        return f, ax
+    num_x = np.ceil(np.sqrt(num))
+    num_y = np.ceil(num / num_x)
+    if is_3d:
+        f, ax = plt.subplots(int(num_y), int(num_x), projection='3d')
+    else:
+        f, ax = plt.subplots(int(num_y), int(num_x))
+
+    ax = ax.flatten()
+    return f, ax

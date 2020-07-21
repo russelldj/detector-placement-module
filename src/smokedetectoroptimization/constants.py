@@ -27,3 +27,7 @@ SMOOTH_PLOTS = True
 
 # Change how sample points are interpolated
 INTERPOLATION_METHOD = "nearest"  # "linear" "cubic"
+
+SINGLE_OBJECTIVE_FUNCTIONS = ["worst_case", "second", "fastest"]
+MULTI_OBJECTIVE_FUNCTIONS = [
+    "multiobjective_counting", "multiobjective_competing"]

@@ -5,6 +5,7 @@ import numpy as np
 from glob import glob
 import pdb
 import io
+import logging
 
 from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE)
 from .functions import convert_to_spherical_from_points
@@ -20,6 +21,7 @@ class SmokeSource():
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
+        logging.warning(f"beginging to load {data_path}")
         if os.path.isfile(data_path):
             self.load_file(data_path)
         elif os.path.isdir(data_path):
@@ -28,6 +30,7 @@ class SmokeSource():
             raise ValueError(
                 f"data path {data_path} was niether a directory nor a file.")
         assert self.concentrations is not None
+        logging.warning(f"done loading {data_path}")
 
     def load_file(self, data_file):
         """
@@ -167,7 +170,7 @@ class SmokeSource():
         # Get all of the concentrations
         num_timesteps = self.concentrations.shape[0]
         # TODO make this a logger again
-        print(
+        logging.warning(
             f'There are {self.concentrations.shape[0]} timesteps and' +
             f' {self.concentrations.shape[1]} locations')
 
