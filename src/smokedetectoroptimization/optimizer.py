@@ -64,9 +64,10 @@ def optimize(sources,
     function_type : str
         What function to optimize : 'worst_case', ''
     """
-
+    logging.info("Making bounds")
     bounds = make_bounds(bounds, sources, num_detectors)
 
+    logging.info("Making the objective function")
     # compute the bounds
     objective_function = make_objective_function(
         sources=sources,
@@ -77,6 +78,7 @@ def optimize(sources,
 
     if function_type in SINGLE_OBJECTIVE_FUNCTIONS:
         # Do the single objective optimization
+        logging.info("Running single objective optimization")
         res, values_over_iterations = run_single_objective_problem(
             objective_function, bounds, compute_function_values=vis)
 
@@ -104,8 +106,10 @@ def run_single_objective_problem(objective_function, bounds,
     def callback(xk, convergence):
         locations_over_iterations.append(xk)
 
+    logging.warning("About to call scipy for optimzation")
     # This is where the actual optimization occurs
     res = differential_evolution(objective_function, bounds, callback=callback)
+    logging.warning("Completed optimzation")
 
     if compute_function_values:
         logging.warning(
@@ -139,9 +143,11 @@ def visualize_single_objective_problem(objective_function,
 
     max_val = visualize_sources(sources, final_locations)
 
-    is_3d = sources[0][2] is not None
+    axis_labels = sources[0]["axis_labels"]
+    is_3d = sources[0]["zs"] is not None
     visualize_slices(objective_function, final_locations,
-                     bounds, max_val=max_val, is_3d=is_3d)
+                     bounds, max_val=max_val, is_3d=is_3d,
+                     axis_labels=axis_labels)
 
 
 def run_optimizer(objective_function, optimizer_type=""):
@@ -211,9 +217,9 @@ def make_bounds(bounds, sources, num_detectors):
     # TODO this should be np.allclose when looping over all sources
     # Should support the 3D case
     if bounds is None:
-        X = sources[0][0]
-        Y = sources[0][1]
-        Z = sources[0][2]
+        X = sources[0]["xs"]
+        Y = sources[0]["ys"]
+        Z = sources[0]["zs"]
         bounds = [(np.min(X), np.max(X)), (np.min(Y), np.max(Y))]
         if Z is not None:
             bounds.append(([np.min(Z), np.max(Z)]))

@@ -21,7 +21,7 @@ class SmokeSource():
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
-        logging.warning(f"beginging to load {data_path}")
+        logging.warning(f"Beginning to load {data_path}")
         if os.path.isfile(data_path):
             self.load_file(data_path)
         elif os.path.isdir(data_path):
@@ -104,7 +104,7 @@ class SmokeSource():
             self,
             alarm_threshold=ALARM_THRESHOLD,
             visualize=False,
-            method="phi_theta",
+            parameterization="phi_theta",
             write_figs=PAPER_READY):
         """
         Gets time to alarm and performs augmentations
@@ -117,8 +117,8 @@ class SmokeSource():
             Should the data be projected into spherical coordinates
         write_figs : Boolean
             Should you write out figures to ./vis/
-        method : str
-            'xy' 'yz' 'xz' 'xyz' 'phi_theta' How to parameterize the data
+        parameterization : str
+            'x_y' 'y_z' 'x_z' 'x_y_z' 'phi_theta' How to parameterize the data
 
         Returns (xs, ys, zs, time_to_alarms)
             z coorinates may be None
@@ -128,33 +128,34 @@ class SmokeSource():
             alarm_threshold)
         num_timesteps, num_samples = concentrations.shape
 
-        if method == "xy":
+        if parameterization == "xy":
             xs = self.xs.copy()
             ys = self.ys.copy()
             zs = None
             axis_labels = ("x locations", "y locations")
-        elif method == "yz":
+        elif parameterization == "yz":
             xs = self.ys.copy()
             ys = self.zs.copy()
             zs = None
             axis_labels = ("y locations", "z locations")
-        elif method == "xz":
+        elif parameterization == "xz":
             xs = self.xs.copy()
             ys = self.zs.copy()
             zs = None
             axis_labels = ("x locations", "z locations")
-        elif method == "xyz":
+        elif parameterization == "xyz":
             xs = self.xs.copy()
             ys = self.ys.copy()
             zs = self.zs.copy()
             axis_labels = ("x locations", "y locations", "z locations")
-        elif method == "phi_theta":
+        elif parameterization == "phi_theta":
             xs, ys = convert_to_spherical_from_points(self.xs, self.ys,
                                                       self.zs)
             zs = None
             axis_labels = ("phi locations", "theta locations")
         else:
-            raise ValueError(f"method {method} wasn't valid")
+            raise ValueError(
+                f"parameterization {parameterization} wasn't valid")
 
         if visualize:
             visualize_time_to_alarm(
@@ -162,7 +163,8 @@ class SmokeSource():
                 concentrations=concentrations, axis_labels=axis_labels,
                 write_figs=write_figs)
 
-        return (xs, ys, zs, time_to_alarm)
+        return {"xs": xs, "ys": ys, "zs": zs, "time_to_alarm": time_to_alarm,
+                "axis_labels": axis_labels}
 
     def compute_time_to_alarm(self, alarm_threshold):
         """This actually does the computation for time to alarm"""

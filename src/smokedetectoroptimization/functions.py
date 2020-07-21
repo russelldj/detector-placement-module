@@ -139,20 +139,23 @@ def make_single_objective_function(
     """
     # Create data which will be used inside of the function to be returned
     funcs = []
-    for xytime in sources:
+    for source in sources:
         # create all of the functions mapping from a location to a time
         # This is notationionally dense but I think it is worthwhile
         # We are creating a list of functions for each of the smoke sources
         # The make_lookup function does that
-        if len(xytime) == 3:
+        X = source["xs"]
+        Y = source["ys"]
+        Z = source["zs"]
+        time_to_alarm = source["time_to_alarm"]
+        # TODO assert that you get the same thing per source
+        if Z is None:
             # This is if we're only optimizing over two location variables per detector
-            X, Y, time = xytime
-            funcs.append(make_lookup(X, Y, time,
+            funcs.append(make_lookup(X, Y, time_to_alarm,
                                      interpolation_method=interpolation_method))
-        elif len(xytime) == 4:
+        else:
             # Three location variables per detector
-            X, Y, Z, time = xytime
-            funcs.append(make_lookup(X, Y, time, Z=Z,
+            funcs.append(make_lookup(X, Y, time_to_alarm, Z=Z,
                                      interpolation_method=interpolation_method))
 
     def ret_func(xys):

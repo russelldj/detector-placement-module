@@ -311,9 +311,9 @@ def visualize_slices(
         bounds,
         max_val=None,
         num_samples=30,
-        verbose=False,
         is_3d=False,
-        log=False):
+        log=False,
+        axis_labels=("phi", "theta")):
     """
     The goal is to do a sweep with each of the detectors leaving the others fixed
 
@@ -366,10 +366,9 @@ def visualize_slices(
         fixed = which_plot.scatter(
             selected_detectors[::2], selected_detectors[1::2], c='w', edgecolors='k')
 
-        if verbose:
-            which_plot.legend([fixed], ["the fixed detectors"])
-            which_plot.set_xlabel("x location")
-            which_plot.set_ylabel("y location")
+        which_plot.legend([fixed], ["the fixed detectors"])
+        which_plot.set_xlabel(axis_labels[0])
+        which_plot.set_ylabel(axis_labels[1])
 
     plt.colorbar(cb, ax=ax[-1])
     if PAPER_READY:
@@ -383,16 +382,20 @@ def visualize_slices(
 
 def visualize_sources(sources, final_locations):
     """
-    sources : [(X, Y, Z, time_to_alarm), ...]
+    sources : [dict, ...]
     final_locations : [x1, y1, x2, y2, ....]
     """
-    if sources[0][2] is not None:
+    if sources[0]["zs"] is not None:
         logging.error("cannot visualize 3D source")
         return -1
 
     f, ax = get_square_axis(len(sources))
     max_time_to_alarm = 0
-    for i, (x, y, z, time_to_alarm) in enumerate(sources):
+    for i, source in enumerate(sources):
+        x = source["xs"]
+        y = source["ys"]
+        axis_labels = source["axis_labels"]
+        time_to_alarm = source["time_to_alarm"]
         # record this for later plotting
         # TODO figure out if this is really required
         max_time_to_alarm = max(max_time_to_alarm, max(time_to_alarm))
@@ -402,6 +405,10 @@ def visualize_sources(sources, final_locations):
                                       final_locations[j + 1],
                                       c='w', edgecolors='k')
             ax[i].legend([detectors], ["optimized detectors"])
+
+        ax[i].set_xlabel(axis_labels[0])
+        ax[i].set_ylabel(axis_labels[1])
+
     f.colorbar(cb)
     if PAPER_READY:
         plt.savefig("vis/TimeToAlarmComposite.png")
