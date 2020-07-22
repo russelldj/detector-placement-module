@@ -141,7 +141,9 @@ def visualize_single_objective_problem(objective_function,
     plt.show()
     # compute all the function values
 
-    max_val = visualize_sources(sources, final_locations)
+    visualize_sources(sources, final_locations)
+
+    max_val = max([np.amax(source["time_to_alarm"]) for source in sources])
 
     axis_labels = sources[0]["axis_labels"]
     is_3d = sources[0]["zs"] is not None

@@ -80,42 +80,64 @@ def plot_sphere(phi, theta, cs, r=1):
 
 def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
                             label="3D visualization of the time to alarm",
-                            fraction=0.05):
+                            plotter=None):
     """
     XYZ_locs : (X, Y, Z)
         The 3D locations of the points
-    smoke_source : (x, y, time_to_alarm)
+    smoke_source : dict
         The coresponding result from `get_time_to_alarm()``
     final_locations : [(x, y), (x, y), ...]
         The location(s) of the detector placements
-    fraction : float
-        how much of the points to visualize
+    show : bool
+        whether to show
+    plotter : pv.Plotter
+        existing plotter to use
     """
     warnings.warn("Untested: may give spurious results.")
     # TODO update this to accomodate the new smoke sources
-    plotter = visualize_3D(XYZ_locs, smoke_source[2], label=label)
+    plotter = visualize_3D(XYZ_locs, smoke_source["time_to_alarm"],
+                           label=label, plotter=plotter, show=False)
 
+    # This defines the 3D world space
     X, Y, Z = XYZ_locs
-    x, y, time_to_alarm = smoke_source
-    xy = np.hstack((np.expand_dims(x, axis=1), np.expand_dims(y, axis=1)))
-    for i in range(0, len(final_locations), 2):
-        final_location = final_locations[i:i+2]
+    # These parameterize the space we optimizaed over
+    # All of these X, Y, Z, x, y, z, time_to_alarm should be the same
+    # length with corresponding indices
+    x = smoke_source["xs"]
+    y = smoke_source["ys"]
+    z = smoke_source["zs"]
+
+    # we now need to find the closest one
+
+    if z is None:
+        # TODO stack should do the same thing here
+        logging.warning("Update to use np.stack")
+        parameterized_locations = np.stack((x, y), axis=1)
+        dimensionality = 2
+    else:
+        logging.warning("Update to use np.stack")
+        parameterized_locations = np.stack((x, y, z), axis=1)
+        dimensionality = 3
+
+    for i in range(0, len(final_locations), dimensionality):
+        final_location = final_locations[i:i+dimensionality]
         # Find the index of the nearest point
-        diffs = xy - final_location
+        diffs = parameterized_locations - final_location
         dists = np.linalg.norm(diffs, axis=1)
         min_loc = np.argmin(dists)
         closest_X = X[min_loc]
         closest_Y = Y[min_loc]
         closest_Z = Z[min_loc]
-        closest_XYZ = np.stack((closest_X, closest_Y, closest_Z), axis=1)
-        highlights = pv.PolyData(closest_XYZ)
-        plotter.add_mesh(highlights)
+        closest_XYZ = (closest_X, closest_Y, closest_Z)
+        highlight = pv.Sphere(radius=0.15, center=closest_XYZ)
+        plotter.add_mesh(highlight, color="red")
 
     plotter.show()
 
 
 def visualize_3D(XYZ_locs, time_to_alarm,
-                 label="3D visualization of the time to alarm", show=True):
+                 label="3D visualization of the time to alarm",
+                 plotter=None, show=True):
     """
     XYZ_locs : (X, Y, Z)
         The 3D locations of the points
@@ -123,10 +145,13 @@ def visualize_3D(XYZ_locs, time_to_alarm,
         How long it takes for each point to alarm
     fraction : float
         how much of the points to visualize
+    plotter : pv.Plotter | None
+        Can plot on existing axis
     show : bool
         Don't show so more information can be added
     """
-    plotter = pv.Plotter()
+    if plotter is None:
+        plotter = pv.Plotter()
     XYZ = np.stack(XYZ_locs, axis=1)
     mesh = pv.PolyData(XYZ)
     # This will colormap the values
@@ -237,7 +262,7 @@ def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,
     # xs, ys = np.meshgrid(
     #    range(concentrations.shape[1]), range(concentrations.shape[0]))
     # pdb.set_trace()
-    #cb = plt.scatter(xs.flatten(), ys.flatten(), c=concentrations.flatten())
+    # cb = plt.scatter(xs.flatten(), ys.flatten(), c=concentrations.flatten())
     # plt.colorbar(cb)  # Add a colorbar to a plot
     # plt.show()
 
@@ -384,37 +409,49 @@ def visualize_sources(sources, final_locations):
     """
     sources : [dict, ...]
     final_locations : [x1, y1, x2, y2, ....]
-    """
-    if sources[0]["zs"] is not None:
-        logging.error("cannot visualize 3D source")
-        return -1
 
-    f, ax = get_square_axis(len(sources))
-    max_time_to_alarm = 0
-    for i, source in enumerate(sources):
-        x = source["xs"]
-        y = source["ys"]
-        axis_labels = source["axis_labels"]
-        time_to_alarm = source["time_to_alarm"]
-        # record this for later plotting
-        # TODO figure out if this is really required
-        max_time_to_alarm = max(max_time_to_alarm, max(time_to_alarm))
-        cb = pmesh_plot(x, y, time_to_alarm, ax[i])
-        for j in range(0, len(final_locations), 2):
-            detectors = ax[i].scatter(final_locations[j],
-                                      final_locations[j + 1],
+    returns None
+    """
+    if sources[0]["zs"] is None:
+        x_detector_inds = np.arange(0, len(final_locations), 2).astype(int)
+        y_detector_inds = x_detector_inds + 1
+        f, ax = get_square_axis(len(sources))
+        for i, source in enumerate(sources):
+            x = source["xs"]
+            y = source["ys"]
+            axis_labels = source["axis_labels"]
+            time_to_alarm = source["time_to_alarm"]
+            cb = pmesh_plot(x, y, time_to_alarm, ax[i])
+
+            detectors = ax[i].scatter(final_locations[x_detector_inds],
+                                      final_locations[y_detector_inds],
                                       c='w', edgecolors='k')
             ax[i].legend([detectors], ["optimized detectors"])
 
-        ax[i].set_xlabel(axis_labels[0])
-        ax[i].set_ylabel(axis_labels[1])
+            ax[i].set_xlabel(axis_labels[0])
+            ax[i].set_ylabel(axis_labels[1])
 
-    f.colorbar(cb)
-    if PAPER_READY:
-        plt.savefig("vis/TimeToAlarmComposite.png")
-    f.suptitle("The time to alarm for each of the smoke sources")
-    plt.show()
-    return max_time_to_alarm
+        f.colorbar(cb)
+        if PAPER_READY:
+            plt.savefig("vis/TimeToAlarmComposite.png")
+        f.suptitle("The time to alarm for each of the smoke sources")
+        plt.show()
+    else:
+        x_detector_inds = np.arange(0, len(final_locations), 3).astype(int)
+        y_detector_inds = x_detector_inds + 1
+        z_detector_inds = x_detector_inds + 2
+
+        for i, source in enumerate(sources):
+            xs = source["xs"]
+            ys = source["ys"]
+            zs = source["zs"]
+            axis_labels = source["axis_labels"]
+            time_to_alarm = source["time_to_alarm"]
+            # record this for later plotting
+            # TODO figure out if this is really required
+            XYZ_locs = (xs, ys, zs)
+            visualize_3D_with_final(XYZ_locs, source,
+                                    final_locations=final_locations)
 
 
 def get_square_axis(num, is_3d=False):

@@ -153,7 +153,6 @@ def make_single_objective_function(
         # TODO assert that you get the same thing per source
         if Z is not None:
             dimensionality = 3
-            logging.warning("3D may not yet be supported fully")
 
         funcs.append(make_lookup(X, Y, time_to_alarm, Z=Z,
                                  interpolation_method=interpolation_method))
@@ -168,6 +167,7 @@ def make_single_objective_function(
         worst_source : Float
             The objective function for the input
         """
+        #print(f"locations : {locations}")
         # TODO this needs to be refactored
         if masked:
             vars_per_detector = dimensionality + 1
@@ -195,6 +195,8 @@ def make_single_objective_function(
             return BIG_NUMBER
 
         all_times = np.asarray(all_times)
+        #print(f"all_times : {all_times}")
+        #print(f"all_times.shape : {all_times.shape}")
 
         if function_type == "worst_case":
             time_for_each_source = np.amin(all_times, axis=0)
