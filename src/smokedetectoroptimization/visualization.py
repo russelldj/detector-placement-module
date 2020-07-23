@@ -78,7 +78,7 @@ def plot_sphere(phi, theta, cs, r=1):
     pdb.set_trace()
 
 
-def visualize_3D_with_final(XYZ, smoke_source, final_locations=None,
+def visualize_3D_with_final(smoke_source, final_locations=None,
                             label="3D visualization of the time to alarm",
                             plotter=None):
     """
@@ -95,7 +95,8 @@ def visualize_3D_with_final(XYZ, smoke_source, final_locations=None,
     """
     warnings.warn("Untested: may give spurious results.")
     # TODO update this to accomodate the new smoke sources
-    plotter = visualize_3D(XYZ, smoke_source.time_to_alarm,
+    plotter = visualize_3D(smoke_source.parameterized_locations,
+                           smoke_source.time_to_alarm,
                            label=label, plotter=plotter, show=False)
 
     # These parameterize the space we optimizaed over
@@ -103,6 +104,8 @@ def visualize_3D_with_final(XYZ, smoke_source, final_locations=None,
     # length with corresponding indices
     parameterized_locations = smoke_source.parameterized_locations
     dimensionality = parameterized_locations.shape[1]
+
+    XYZ = smoke_source.parameterized_locations
 
     for i in range(0, len(final_locations), dimensionality):
         final_location = final_locations[i:i+dimensionality]
@@ -401,7 +404,6 @@ def visualize_sources(sources, final_locations):
 
     returns None
     """
-    pdb.set_trace()
     dimensionality = sources[0].parameterized_locations.shape[1]
 
     if dimensionality == 2:
@@ -435,9 +437,7 @@ def visualize_sources(sources, final_locations):
         for i, source in enumerate(sources):
             # record this for later plotting
             # TODO figure out if this is really required
-            visualize_3D_with_final(source.parameterized_locations,
-                                    source.time_to_alarm,
-                                    final_locations=final_locations)
+            visualize_3D_with_final(source, final_locations=final_locations)
     else:
         logging.error(
             f"visualize_sources only supports 2 or 3 dimensions but recieved {dimensionality}")
