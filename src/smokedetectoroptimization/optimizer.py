@@ -19,6 +19,7 @@ import argparse
 import sys
 import logging
 import pdb
+import os
 
 import numpy as np
 from scipy.optimize import differential_evolution
@@ -40,7 +41,7 @@ _logger = logging.getLogger(__name__)
 
 
 def optimize(sources,
-             num_detectors,
+             num_detectors=1,
              function_type="worst_case",
              bounds=None,
              bad_sources=None,
@@ -52,7 +53,8 @@ def optimize(sources,
     num_detectors : int
         The number of detectors to place
     bounds : ArrayLike
-        [x_low, x_high, y_low, y_high] or [x_low, x_high, y_low, y_high, z_low, z_high]
+        [x_low, x_high, y_low, y_high] or [
+            x_low, x_high, y_low, y_high, z_low, z_high]
         will be computed from sources if None. This determines whether to
         optimize over a two or three dimensional space
     genetic : Boolean
@@ -88,7 +90,9 @@ def optimize(sources,
                                                sources, bounds, res.x)
 
     elif function_type in MULTI_OBJECTIVE_FUNCTIONS:
-        logging.warning("Not computing multiobjective function")
+        logging.warning("Running mulitobjecitve optimization")
+        run_multiobjective_problem(objective_function,
+                                   function_type=function_type)
 
 
 def run_single_objective_problem(objective_function, bounds,
@@ -152,66 +156,43 @@ def visualize_single_objective_problem(objective_function,
                      axis_labels=axis_labels)
 
 
-def run_optimizer(objective_function, optimizer_type=""):
+def run_multiobjective_problem(algorithm, function_type, verbose=False):
     """
     Actually perform the optimization
 
-    optimizer
+    problem
+
+    function_type
     """
+    # optimize the problem using 1,000 function evaluations
+    # TODO should this be improved?
+    logging.warning("Running for 1000 iterations. Could be tuned")
+    algorithm.run(1000)
 
-    if multiobjective:
-        if multiobjective_type == "counting":
-            problem = self.make_platypus_objective_function_counting(
-                sources)  # TODO remove this
-            # it complains about needing a defined mutator for mixed problems
-            # Suggestion taken from
-            # https://github.com/Project-Platypus/Platypus/issues/31
-            algorithm = NSGAII(
-                problem, variator=CompoundOperator(
-                    SBX(), HUX(), PM(), BitFlip()))
-            second_objective = "The number of detectors"
-            savefile = "vis/ParetoNumDetectors.png"
-        elif multiobjective_type == "competing_function":
-            if "bad_sources" not in kwargs:
-                raise ValueError(
-                    "bad_sources should have been included in the kwargs")
-            bad_sources = kwargs["bad_sources"]
-            problem = self.make_platypus_objective_function(
-                sources, "competing_function", bad_sources=bad_sources)  # TODO remove this
-            algorithm = NSGAII(problem)
-            second_objective = "The time to alarm for the exercise equiptment"
-            savefile = "vis/ParetoExerciseFalseAlarm.png"
-        else:
-            raise ValueError(
-                "The type : {} was not valid".format(multiobjective_type))
-        # optimize the problem using 1,000 function evaluations
-        # TODO should this be improved?
-        algorithm.run(1000)
-        if verbose:
-            for solution in algorithm.result:
-                print(
-                    "Solution : {}, Location : {}".format(
-                        solution.objectives,
-                        solution.variables))
+    if verbose:
+        for solution in algorithm.result:
+            print(
+                "Solution : {}, Location : {}".format(
+                    solution.objectives,
+                    solution.variables))
 
-        x_values = [s.objectives[1] for s in algorithm.result]
-        plt.scatter(x_values,
-                    [s.objectives[0] for s in algorithm.result])
-        plt.xlabel(second_objective)
-        if second_objective == "competing_function":
-            # invert the axis
-            plt.set_xlim(max(x_values), min(x_values))
+    x_values = [s.objectives[1] for s in algorithm.result]
+    plt.scatter(x_values,
+                [s.objectives[0] for s in algorithm.result])
 
-        plt.ylabel("The time to alarm")
-        plt.title("Pareto optimality curve for the two functions")
-        if PAPER_READY:
-            plt.savefig(savefile)
-        plt.show()
-        res = algorithm
-        if visualize:
-            logging.warn(
-                "Can't visualize the objective values for a multiobjective run",
-                UserWarning)
+    if function_type == "multiobjective_competing":
+        # invert the axis
+        plt.xlim(max(x_values), min(x_values))
+        plt.xlabel("time to false alarm")
+    else:
+        plt.xlabel("Number of detectors")
+
+    plt.ylabel("The time to alarm")
+    plt.title("Pareto optimality curve for the two functions")
+    if PAPER_READY:
+        logging.warning("Need to implment figure saving")
+        plt.savefig(os.path.join("vis", f"{function_type}.png"))
+    plt.show()
 
 
 def make_bounds(bounds, sources, num_detectors):

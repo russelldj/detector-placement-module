@@ -420,7 +420,7 @@ def visualize_sources(sources, final_locations):
 
             detectors = ax[i].scatter(final_locations[x_detector_inds],
                                       final_locations[y_detector_inds],
-                                      c='w', edgecolors='k')
+                                      c='g', edgecolors='w')
             ax[i].legend([detectors], ["optimized detectors"])
 
             ax[i].set_xlabel(axis_labels[0])

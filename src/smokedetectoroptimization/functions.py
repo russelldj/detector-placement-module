@@ -168,7 +168,7 @@ def make_single_objective_function(
             # The mask variable is the last one in the list for the detector
             # and it is itself a list of one boolean value, which must be
             # extracted
-            if not masked or detector_vars[0][0]:
+            if not masked or detector_vars[-1][0]:
                 all_times.append([])
                 for func in funcs:
                     if masked:
@@ -218,9 +218,9 @@ def make_multiobjective_function(sources,
     if function_type == "multiobjective_counting":
         problem = make_multiobjective_function_counting(
             sources, bounds=bounds, interpolation_method=interpolation_method)
-        # algorithm = NSGAII(
-        #    problem, variator=CompoundOperator(  # TODO look further into this
-        #        SBX(), HUX(), PM(), BitFlip()))
+        algorithm = NSGAII(
+            problem, variator=CompoundOperator(  # TODO look further into this
+                SBX(), HUX(), PM(), BitFlip()))
     elif function_type == "multiobjective_competing":
         if bad_sources is None:
             raise ValueError(
@@ -228,12 +228,12 @@ def make_multiobjective_function(sources,
         problem = make_multiobjective_function_competing(
             sources, bounds=bounds, bad_sources=bad_sources,
             interpolation_method=interpolation_method)  # TODO remove this
-        # algorithm = NSGAII(problem)
+        algorithm = NSGAII(problem)
     else:
         raise ValueError(
             "The type : {} was not valid".format(function_type))
 
-    return problem
+    return algorithm
 
 
 def convert_to_spherical_from_points(X, Y, Z):
@@ -303,24 +303,22 @@ def make_multiobjective_function_competing(
     def multiobjective_func(x):  # this is the double objective function
         return [objective_function(x), bad_objective_function(x)]
 
-    num_inputs = len(sources) * 2  # there is an x, y for each source
+    parameterized_locations = sources[0].parameterized_locations
+    dimensionality = parameterized_locations.shape[1]
+
+    num_inputs = len(sources) * dimensionality
     NUM_OUPUTS = 2  # the default for now
     # define the demensionality of input and output spaces
     problem = Problem(num_inputs, NUM_OUPUTS)
 
-    min_x = bounds[0][0]
-    min_y = bounds[0][1]
-    max_x = bounds[1][0]
-    max_y = bounds[1][1]
-    print(
-        "min x : {}, max x : {}, min y : {}, max y : {}".format(
-            min_x,
-            max_x,
-            min_y,
-            max_y))
+    logging.warning(
+        f"Creating a multiobjective competing function with dimensionality {dimensionality}")
+    logging.warning(f"bounds are {bounds}")
+    for i in range(dimensionality):
+        # splat "*" notation is expanding the pair which is low, high
+        problem.types[i::dimensionality] = Real(
+            *bounds[i])  # This is the feasible region
 
-    problem.types[::2] = Real(min_x, max_x)  # This is the feasible region
-    problem.types[1::2] = Real(min_y, max_y)
     problem.function = multiobjective_func
     # the second function should be maximized rather than minimized
     problem.directions[1] = Problem.MAXIMIZE
@@ -345,24 +343,25 @@ def make_multiobjective_function_counting(
     # times more input variables
     # the upper bound on the number of detectors n times the number of
     # sources
-    num_inputs = len(sources) * 3 * times_more_detectors
+    parameterized_locations = sources[0].parameterized_locations
+    dimensionality = parameterized_locations.shape[1]
+
+    # We add a boolean flag to each location variable
+    num_inputs = len(sources) * (dimensionality + 1) * times_more_detectors
     NUM_OUPUTS = 2  # the default for now
     # define the demensionality of input and output spaces
     problem = Problem(num_inputs, NUM_OUPUTS)
 
-    min_x = bounds[0][0]
-    min_y = bounds[0][1]
-    max_x = bounds[1][0]
-    max_y = bounds[1][1]
-    print(
-        "min x : {}, max x : {}, min y : {}, max y : {}".format(
-            min_x,
-            max_x,
-            min_y,
-            max_y))
-    problem.types[0::3] = Real(min_x, max_x)  # This is the feasible region
-    problem.types[1::3] = Real(min_y, max_y)
+    logging.warning(
+        f"Creating a multiobjective counting function with dimensionality {dimensionality}")
+    logging.warning(f"bounds are {bounds}")
+
+    for i in range(dimensionality):
+        # splat "*" notation is expanding the pair which is low, high
+        problem.types[i::(dimensionality+1)] = Real(*bounds[i]
+                                                    )  # This is the feasible region
+
     # indicator on whether the source is on
-    problem.types[2::3] = Binary(1)
+    problem.types[dimensionality::(dimensionality+1)] = Binary(1)
     problem.function = multiobjective_func
     return problem
