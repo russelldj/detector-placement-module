@@ -25,8 +25,9 @@ class SmokeSource():
 
         self.concentrations = None
         self.XYZ = None
-        self.locations_parameterization = None
+        self.parameterized_locations = None
         self.axis_labels = None
+        self.time_to_alarm = None
 
         self.load_data(data_path)
         self.get_time_to_alarm(
@@ -140,28 +141,28 @@ class SmokeSource():
         Returns None
         """
 
-        time_to_alarm, concentrations = self.compute_time_to_alarm(
+        self.time_to_alarm, concentrations = self.compute_time_to_alarm(
             alarm_threshold)
         _, num_samples = concentrations.shape
 
         if parameterization == "xy":
-            self.locations_parameterization = self.XYZ[:, :2].copy()
+            self.parameterized_locations = self.XYZ[:, :2].copy()
             self.axis_labels = ("x locations", "y locations")
         elif parameterization == "yz":
-            self.locations_parameterization = self.XYZ[:, 1:].copy()
+            self.parameterized_locations = self.XYZ[:, 1:].copy()
             self.axis_labels = ("y locations", "z locations")
         elif parameterization == "xz":
             pdb.set_trace()
             # take the 0th and 2nd columns
-            self.locations_parameterization = self.XYZ[:, 0:4:2].copy()
+            self.parameterized_locations = self.XYZ[:, 0:4:2].copy()
             self.axis_labels = ("x locations", "z locations")
         elif parameterization == "xyz":
-            self.locations_parameterization = self.XYZ.copy()
+            self.parameterized_locations = self.XYZ.copy()
             self.axis_labels = ("x locations", "y locations", "z locations")
         elif parameterization == "phi_theta":
             phi, theta = convert_to_spherical_from_points(
                 self.XYZ[:, 0], self.XYZ[:, 1], self.XYZ[:, 2])
-            self.locations_parameterization = np.stack((phi, theta), axis=1)
+            self.parameterized_locations = np.stack((phi, theta), axis=1)
             self.axis_labels = ("phi locations", "theta locations")
         else:
             raise ValueError(
@@ -169,8 +170,11 @@ class SmokeSource():
 
         if vis:
             visualize_time_to_alarm(
-                self.locations_parameterization, time_to_alarm, num_samples=num_samples,
-                concentrations=concentrations, axis_labels=self.axis_labels,
+                self.parameterized_locations,
+                self.time_to_alarm,
+                num_samples=num_samples,
+                concentrations=concentrations,
+                axis_labels=self.axis_labels,
                 write_figs=write_figs)
 
     def compute_time_to_alarm(self, alarm_threshold):

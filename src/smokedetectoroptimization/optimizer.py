@@ -47,8 +47,8 @@ def optimize(sources,
              vis=True,
              interpolation_method="nearest"):
     """
-    sources : ArrayLike
-        list of (x, y, time) tuples
+    sources : [SmokeSource]
+        Sources are now represented by their own class
     num_detectors : int
         The number of detectors to place
     bounds : ArrayLike
@@ -143,10 +143,10 @@ def visualize_single_objective_problem(objective_function,
 
     visualize_sources(sources, final_locations)
 
-    max_val = max([np.amax(source["time_to_alarm"]) for source in sources])
+    max_val = max([np.amax(source.time_to_alarm) for source in sources])
 
-    axis_labels = sources[0]["axis_labels"]
-    is_3d = sources[0]["zs"] is not None
+    axis_labels = sources[0].axis_labels
+    is_3d = sources[0].parameterized_locations.shape[1] == 3
     visualize_slices(objective_function, final_locations,
                      bounds, max_val=max_val, is_3d=is_3d,
                      axis_labels=axis_labels)
@@ -216,16 +216,11 @@ def run_optimizer(objective_function, optimizer_type=""):
 
 def make_bounds(bounds, sources, num_detectors):
     """Estimates bounds from data if needed, otherwise just reformats"""
-    # TODO this should be np.allclose when looping over all sources
-    # Should support the 3D case
-    if bounds is None:
-        X = sources[0]["xs"]
-        Y = sources[0]["ys"]
-        Z = sources[0]["zs"]
-        bounds = [(np.min(X), np.max(X)), (np.min(Y), np.max(Y))]
-
-        if Z is not None:
-            bounds.append(([np.min(Z), np.max(Z)]))
+    first_source = sources[0]
+    min_values = np.amin(first_source.parameterized_locations, axis=0)
+    max_values = np.amax(first_source.parameterized_locations, axis=0)
+    bounds = [(min_values[i], max_values[i])
+              for i in range(min_values.shape[0])]
 
     # duplicate the list that many times
     expanded_bounds = bounds * num_detectors

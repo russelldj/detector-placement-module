@@ -47,27 +47,18 @@ def make_counting_objective():
     return counting_func
 
 
-def make_lookup(X, Y, time_to_alarm, Z=None, interpolation_method=INTERPOLATION_METHOD):
+def make_lookup(simulated_points, time_to_alarm, interpolation_method=INTERPOLATION_METHOD):
     """
-    X, Y : ArrayLike[Float]
-        The x, y locations of the data points from the simulation
+    simulated_points : np.ArrayLike(Float), (n, m)
+        n samples, m parameterizing dimensions
     time_to_alarm : ArrayLike[Float]
         The time to alarm corresponding to each of the locations
-    Z : ArrayLike[Float]
-        This is optional but will be used if not None
     interpolation_method : str
         The method for interpolating the data
     -----returns-----
     The sampled value, either using the nearest point or interpolation
     """
-    if Z is None:
-        # combine the x and y data points
-        simulated_points = np.vstack((X, Y)).transpose()
-        num_dimensions = 2  # The number of dimensions we are optimizing over
-    else:
-        # combine the x and y data points
-        simulated_points = np.vstack((X, Y, Z)).transpose()
-        num_dimensions = 3  # The number of dimensions we are optimizing over
+    num_dimensions = simulated_points.shape[1]  # The number of dimensions we are optimizing over
 
     def ret_func(query_point):  # this is what will be returned
         """
@@ -121,8 +112,8 @@ def make_single_objective_function(
     """
     This function creates and returns the function which will be optimized
     -----inputs------
-    xytimes : ArrayLike[Tuple[ArrayLike[Float]]]
-        A list of tuples in the form [(x, y, times), (x, y, times), ....] coresponding to the different smokes sources
+    sources : [SmokeSource]
+        A list of smoke source objects representing all the sources
     verbose : Boolean
         print information during functinon evaluations
     type : String
@@ -146,16 +137,12 @@ def make_single_objective_function(
         # This is notationionally dense but I think it is worthwhile
         # We are creating a list of functions for each of the smoke sources
         # The make_lookup function does that
-        X = source["xs"]
-        Y = source["ys"]
-        Z = source["zs"]
-        time_to_alarm = source["time_to_alarm"]
-        # TODO assert that you get the same thing per source
-        if Z is not None:
-            dimensionality = 3
+        locations = source.parameterized_locations
+        time_to_alarm = source.time_to_alarm
 
-        funcs.append(make_lookup(X, Y, time_to_alarm, Z=Z,
+        funcs.append(make_lookup(locations, time_to_alarm,
                                  interpolation_method=interpolation_method))
+    dimensionality = locations.shape[1]
 
     def ret_func(locations):
         """

@@ -95,27 +95,14 @@ def visualize_3D_with_final(XYZ, smoke_source, final_locations=None,
     """
     warnings.warn("Untested: may give spurious results.")
     # TODO update this to accomodate the new smoke sources
-    plotter = visualize_3D(XYZ, smoke_source["time_to_alarm"],
+    plotter = visualize_3D(XYZ, smoke_source.time_to_alarm,
                            label=label, plotter=plotter, show=False)
 
     # These parameterize the space we optimizaed over
     # All of these X, Y, Z, x, y, z, time_to_alarm should be the same
     # length with corresponding indices
-    x = smoke_source["xs"]
-    y = smoke_source["ys"]
-    z = smoke_source["zs"]
-
-    # we now need to find the closest one
-
-    if z is None:
-        # TODO stack should do the same thing here
-        logging.warning("Update to use np.stack")
-        parameterized_locations = np.stack((x, y), axis=1)
-        dimensionality = 2
-    else:
-        logging.warning("Update to use np.stack")
-        parameterized_locations = np.stack((x, y, z), axis=1)
-        dimensionality = 3
+    parameterized_locations = smoke_source.parameterized_locations
+    dimensionality = parameterized_locations.shape[1]
 
     for i in range(0, len(final_locations), dimensionality):
         final_location = final_locations[i:i+dimensionality]
@@ -414,15 +401,19 @@ def visualize_sources(sources, final_locations):
 
     returns None
     """
-    if sources[0]["zs"] is None:
+    pdb.set_trace()
+    dimensionality = sources[0].parameterized_locations.shape[1]
+
+    if dimensionality == 2:
         x_detector_inds = np.arange(0, len(final_locations), 2).astype(int)
         y_detector_inds = x_detector_inds + 1
+
         f, ax = get_square_axis(len(sources))
         for i, source in enumerate(sources):
-            x = source["xs"]
-            y = source["ys"]
-            axis_labels = source["axis_labels"]
-            time_to_alarm = source["time_to_alarm"]
+            x = source.parameterized_locations[:, 0]
+            y = source.parameterized_locations[:, 1]
+            axis_labels = source.axis_labels
+            time_to_alarm = source.time_to_alarm
             cb = pmesh_plot(x, y, time_to_alarm, ax[i])
 
             detectors = ax[i].scatter(final_locations[x_detector_inds],
@@ -438,22 +429,18 @@ def visualize_sources(sources, final_locations):
             plt.savefig("vis/TimeToAlarmComposite.png")
         f.suptitle("The time to alarm for each of the smoke sources")
         plt.show()
-    else:
-        x_detector_inds = np.arange(0, len(final_locations), 3).astype(int)
-        y_detector_inds = x_detector_inds + 1
-        z_detector_inds = x_detector_inds + 2
+
+    elif dimensionality == 3:
 
         for i, source in enumerate(sources):
-            xs = source["xs"]
-            ys = source["ys"]
-            zs = source["zs"]
-            axis_labels = source["axis_labels"]
-            time_to_alarm = source["time_to_alarm"]
             # record this for later plotting
             # TODO figure out if this is really required
-            XYZ_locs = (xs, ys, zs)
-            visualize_3D_with_final(XYZ_locs, source,
+            visualize_3D_with_final(source.parameterized_locations,
+                                    source.time_to_alarm,
                                     final_locations=final_locations)
+    else:
+        logging.error(
+            f"visualize_sources only supports 2 or 3 dimensions but recieved {dimensionality}")
 
 
 def get_square_axis(num, is_3d=False):
