@@ -78,11 +78,11 @@ def plot_sphere(phi, theta, cs, r=1):
     pdb.set_trace()
 
 
-def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
+def visualize_3D_with_final(XYZ, smoke_source, final_locations=None,
                             label="3D visualization of the time to alarm",
                             plotter=None):
     """
-    XYZ_locs : (X, Y, Z)
+    XYZ : np.array, (n, 3)
         The 3D locations of the points
     smoke_source : dict
         The coresponding result from `get_time_to_alarm()``
@@ -95,11 +95,9 @@ def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
     """
     warnings.warn("Untested: may give spurious results.")
     # TODO update this to accomodate the new smoke sources
-    plotter = visualize_3D(XYZ_locs, smoke_source["time_to_alarm"],
+    plotter = visualize_3D(XYZ, smoke_source["time_to_alarm"],
                            label=label, plotter=plotter, show=False)
 
-    # This defines the 3D world space
-    X, Y, Z = XYZ_locs
     # These parameterize the space we optimizaed over
     # All of these X, Y, Z, x, y, z, time_to_alarm should be the same
     # length with corresponding indices
@@ -125,17 +123,14 @@ def visualize_3D_with_final(XYZ_locs, smoke_source, final_locations=None,
         diffs = parameterized_locations - final_location
         dists = np.linalg.norm(diffs, axis=1)
         min_loc = np.argmin(dists)
-        closest_X = X[min_loc]
-        closest_Y = Y[min_loc]
-        closest_Z = Z[min_loc]
-        closest_XYZ = (closest_X, closest_Y, closest_Z)
-        highlight = pv.Sphere(radius=0.15, center=closest_XYZ)
+        closest_point = XYZ[min_loc, :]
+        highlight = pv.Sphere(radius=0.15, center=closest_point)
         plotter.add_mesh(highlight, color="red")
 
     plotter.show()
 
 
-def visualize_3D(XYZ_locs, time_to_alarm,
+def visualize_3D(XYZ, time_to_alarm,
                  label="3D visualization of the time to alarm",
                  plotter=None, show=True):
     """
@@ -152,7 +147,6 @@ def visualize_3D(XYZ_locs, time_to_alarm,
     """
     if plotter is None:
         plotter = pv.Plotter()
-    XYZ = np.stack(XYZ_locs, axis=1)
     mesh = pv.PolyData(XYZ)
     # This will colormap the values
     plotter.add_mesh(mesh, scalars=time_to_alarm,  stitle='Time to alarm')
@@ -162,18 +156,23 @@ def visualize_3D(XYZ_locs, time_to_alarm,
     return plotter
 
 
-def visualize_time_to_alarm(X, Y, Z, time_to_alarm, num_samples,
+def visualize_time_to_alarm(parameterized_locations, time_to_alarm, num_samples,
                             concentrations, num_samples_visualized=10,
                             smoothed=SMOOTH_PLOTS, spherical=True,
                             write_figs=PAPER_READY,
                             axis_labels=("x location", "y location")):
     """
     show the time to alarm plots
+
+    paramerterized_locations : np.array
+        n samples x m parameterizing variables
     """
-    if Z is None:
+    parameterizing_dimensionality = parameterized_locations.shape[1]
+    if parameterizing_dimensionality == 2:
+
         cb = pmesh_plot(
-            X,
-            Y,
+            parameterized_locations[:, 0],
+            parameterized_locations[:, 1],
             time_to_alarm,
             plt,
             num_samples=70, smooth=smoothed,
@@ -188,8 +187,11 @@ def visualize_time_to_alarm(X, Y, Z, time_to_alarm, num_samples,
             else:
                 plt.savefig("vis/TimeToAlarmDots.png")
         plt.show()
+    elif parameterizing_dimensionality == 3:
+        visualize_3D(parameterized_locations, time_to_alarm)
     else:
-        visualize_3D((X, Y, Z), time_to_alarm)
+        logging.error(
+            "visualize_time_to_alarm only supports data with 2 or 3 dimensions but {parameterizing_dimensionality} were given")
 
 
 def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,
@@ -345,7 +347,7 @@ def visualize_slices(
     bounds [(x_low, x_high), (y_low, y_high), ....]
     """
     if is_3d:
-        logging.error("Cannot visualize 3D data")
+        logging.error("Cannot visualize slices for 3D parameterization")
         return None
 
     logging.warn("Begining to visualize slices. May take a while")

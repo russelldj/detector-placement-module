@@ -15,9 +15,25 @@ from .visualization import visualize_time_to_alarm
 class SmokeSource():
     """Represents the smoke source and its time to alarm"""
 
-    def __init__(self, data_path):
+    def __init__(self,
+                 data_path,
+                 alarm_threshold=ALARM_THRESHOLD,
+                 parameterization="phi_theta",
+                 vis=False,
+                 write_figs=PAPER_READY):
         self.data_path = data_path
+
+        self.concentrations = None
+        self.XYZ = None
+        self.locations_parameterization = None
+        self.axis_labels = None
+
         self.load_data(data_path)
+        self.get_time_to_alarm(
+            alarm_threshold=alarm_threshold,
+            parameterization=parameterization,
+            vis=vis,
+            write_figs=write_figs)
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
@@ -30,6 +46,7 @@ class SmokeSource():
             raise ValueError(
                 f"data path {data_path} was niether a directory nor a file.")
         assert self.concentrations is not None
+        assert self.XYZ is not None
         logging.warning(f"done loading {data_path}")
 
     def load_file(self, data_file):
@@ -60,9 +77,9 @@ class SmokeSource():
 
         # spatial locations are assumed to be constant over time
         # so only the last ones are taken
-        self.xs = timestep_data['x-coordinate'].values
-        self.ys = timestep_data['y-coordinate'].values
-        self.zs = timestep_data['z-coordinate'].values
+        self.XYZ = np.stack((timestep_data['x-coordinate'].values,
+                             timestep_data['y-coordinate'].values,
+                             timestep_data['z-coordinate'].values), axis=1)
 
         self.concentrations = np.stack(concentrations_list)
 
@@ -93,9 +110,9 @@ class SmokeSource():
 
         # spatial locations are assumed to be constant over time
         # so only the last ones are taken
-        self.xs = timestep_data['x-coordinate'].values
-        self.ys = timestep_data['y-coordinate'].values
-        self.zs = timestep_data['z-coordinate'].values
+        self.XYZ = np.stack((timestep_data['x-coordinate'].values,
+                             timestep_data['y-coordinate'].values,
+                             timestep_data['z-coordinate'].values), axis=1)
 
         self.concentrations = np.stack(concentrations_list)
 
@@ -103,15 +120,15 @@ class SmokeSource():
     def get_time_to_alarm(
             self,
             alarm_threshold=ALARM_THRESHOLD,
-            visualize=False,
             parameterization="phi_theta",
+            vis=False,
             write_figs=PAPER_READY):
         """
         Gets time to alarm and performs augmentations
 
         alarm_threshold : Float
             What concentraion will trigger the detector
-        visualize : Boolean
+        vis : Boolean
             Should it be shown
         spherical_projection : Boolean
             Should the data be projected into spherical coordinates
@@ -120,51 +137,41 @@ class SmokeSource():
         parameterization : str
             'x_y' 'y_z' 'x_z' 'x_y_z' 'phi_theta' How to parameterize the data
 
-        Returns (xs, ys, zs, time_to_alarms)
-            z coorinates may be None
+        Returns None
         """
 
         time_to_alarm, concentrations = self.compute_time_to_alarm(
             alarm_threshold)
-        num_timesteps, num_samples = concentrations.shape
+        _, num_samples = concentrations.shape
 
         if parameterization == "xy":
-            xs = self.xs.copy()
-            ys = self.ys.copy()
-            zs = None
-            axis_labels = ("x locations", "y locations")
+            self.locations_parameterization = self.XYZ[:, :2].copy()
+            self.axis_labels = ("x locations", "y locations")
         elif parameterization == "yz":
-            xs = self.ys.copy()
-            ys = self.zs.copy()
-            zs = None
-            axis_labels = ("y locations", "z locations")
+            self.locations_parameterization = self.XYZ[:, 1:].copy()
+            self.axis_labels = ("y locations", "z locations")
         elif parameterization == "xz":
-            xs = self.xs.copy()
-            ys = self.zs.copy()
-            zs = None
-            axis_labels = ("x locations", "z locations")
+            pdb.set_trace()
+            # take the 0th and 2nd columns
+            self.locations_parameterization = self.XYZ[:, 0:4:2].copy()
+            self.axis_labels = ("x locations", "z locations")
         elif parameterization == "xyz":
-            xs = self.xs.copy()
-            ys = self.ys.copy()
-            zs = self.zs.copy()
-            axis_labels = ("x locations", "y locations", "z locations")
+            self.locations_parameterization = self.XYZ.copy()
+            self.axis_labels = ("x locations", "y locations", "z locations")
         elif parameterization == "phi_theta":
-            xs, ys = convert_to_spherical_from_points(self.xs, self.ys,
-                                                      self.zs)
-            zs = None
-            axis_labels = ("phi locations", "theta locations")
+            phi, theta = convert_to_spherical_from_points(
+                self.XYZ[:, 0], self.XYZ[:, 1], self.XYZ[:, 2])
+            self.locations_parameterization = np.stack((phi, theta), axis=1)
+            self.axis_labels = ("phi locations", "theta locations")
         else:
             raise ValueError(
                 f"parameterization {parameterization} wasn't valid")
 
-        if visualize:
+        if vis:
             visualize_time_to_alarm(
-                xs, ys, zs, time_to_alarm, num_samples=num_samples,
-                concentrations=concentrations, axis_labels=axis_labels,
+                self.locations_parameterization, time_to_alarm, num_samples=num_samples,
+                concentrations=concentrations, axis_labels=self.axis_labels,
                 write_figs=write_figs)
-
-        return {"xs": xs, "ys": ys, "zs": zs, "time_to_alarm": time_to_alarm,
-                "axis_labels": axis_labels}
 
     def compute_time_to_alarm(self, alarm_threshold):
         """This actually does the computation for time to alarm"""
