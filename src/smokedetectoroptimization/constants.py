@@ -22,6 +22,9 @@ PAPER_READY = True
 PLOT_TITLES = False
 EPSILON = 0.000000001
 
+# How many runs to do to evaluate the optimizer
+NUM_EVALUATION_ITERS = 20
+
 # Should plots by default be interpolated?
 SMOOTH_PLOTS = False
 

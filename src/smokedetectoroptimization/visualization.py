@@ -18,6 +18,7 @@ from .functions import normalize
 
 
 # matplotlib.use('module://ipykernel.pylab.backend_inline')
+visualization_logger = logging.getLogger("visualization")
 
 
 def show_optimization_statistics(vals, iterations, locs):
@@ -33,12 +34,6 @@ def show_optimization_statistics(vals, iterations, locs):
     plt.xlabel("number of evaluations to converge")
     if PAPER_READY:
         plt.savefig("vis/SummaryOptimizationIterations.png")
-    plt.show()
-
-    for loc in locs:
-        plot_xy(loc)
-    plt.xlim(0, 8.1)
-    plt.ylim(0, 3)
     plt.show()
 
 
@@ -93,7 +88,8 @@ def visualize_3D_with_final(smoke_source, final_locations=None,
     plotter : pv.Plotter
         existing plotter to use
     """
-    warnings.warn("Untested: may give spurious results.")
+    visualization_logger.warning(
+        "Showing a 3D plot of time to alarm with final locations in red")
     # TODO update this to accomodate the new smoke sources
     plotter = visualize_3D(smoke_source.parameterized_locations,
                            smoke_source.time_to_alarm,
@@ -180,7 +176,7 @@ def visualize_time_to_alarm(parameterized_locations, time_to_alarm, num_samples,
     elif parameterizing_dimensionality == 3:
         visualize_3D(parameterized_locations, time_to_alarm)
     else:
-        logging.error(
+        visualization_logger.error(
             "visualize_time_to_alarm only supports data with 2 or 3 dimensions but {parameterizing_dimensionality} were given")
 
 
@@ -337,10 +333,11 @@ def visualize_slices(
     bounds [(x_low, x_high), (y_low, y_high), ....]
     """
     if is_3d:
-        logging.error("Cannot visualize slices for 3D parameterization")
+        visualization_logger.error(
+            "Cannot visualize slices for 3D parameterization")
         return None
 
-    logging.warn("Begining to visualize slices. May take a while")
+    visualization_logger.warn("Begining to visualize slices. May take a while")
 
     # set up the sampling locations
 
@@ -439,7 +436,7 @@ def visualize_sources(sources, final_locations):
             # TODO figure out if this is really required
             visualize_3D_with_final(source, final_locations=final_locations)
     else:
-        logging.error(
+        visualization_logger.error(
             f"visualize_sources only supports 2 or 3 dimensions but recieved {dimensionality}")
 
 

@@ -20,15 +20,19 @@ import sys
 import logging
 import pdb
 import os
+from collections import defaultdict
 
 import numpy as np
 from scipy.optimize import differential_evolution
 import matplotlib.pyplot as plt
+from tqdm import trange, tqdm
 
 from .functions import make_objective_function
 from .constants import (SINGLE_OBJECTIVE_FUNCTIONS, MULTI_OBJECTIVE_FUNCTIONS,
-                        PAPER_READY)
-from .visualization import visualize_slices, visualize_sources
+                        PAPER_READY, NUM_EVALUATION_ITERS)
+from .visualization import (visualize_slices, visualize_sources,
+                            show_optimization_statistics,
+                            show_optimization_runs)
 
 from smokedetectoroptimization import __version__
 
@@ -37,7 +41,33 @@ __author__ = "David Russell"
 __copyright__ = "David Russell"
 __license__ = "mit"
 
-_logger = logging.getLogger(__name__)
+optimization_logger = logging.getLogger(__name__)
+
+
+def evaluate_optimization(sources,
+                          num_iterations=NUM_EVALUATION_ITERS,
+                          visualize_summary=True,
+                          **kwargs):
+    """
+    Use the same keywords as optimize
+
+    kwargs is the keyword arguments
+    """
+    # Create a dictionary with a default value of the empty list
+    statistics = defaultdict(lambda: [])
+
+    for _ in trange(num_iterations):
+        res = optimize(sources=sources, vis=False, **kwargs)
+        statistics["iter_vals"].append(res.iter_vals)
+        statistics["final_vals"].append(res.iter_vals[0])
+        statistics["final_locs"].append(res.x)
+        statistics["num_iters"].append(res.nit)
+    if visualize_summary:
+        show_optimization_statistics(statistics["final_vals"],
+                                     statistics["num_iters"],
+                                     statistics["final_locs"])
+        show_optimization_runs(statistics["iter_vals"])
+    return statistics
 
 
 def optimize(sources,
@@ -66,10 +96,10 @@ def optimize(sources,
     function_type : str
         What function to optimize : 'worst_case', ''
     """
-    logging.info("Making bounds")
+    optimization_logger.info("Making bounds")
     bounds = make_bounds(bounds, sources, num_detectors)
 
-    logging.info("Making the objective function")
+    optimization_logger.info("Making the objective function")
     # compute the bounds
     objective_function = make_objective_function(
         sources=sources,
@@ -80,23 +110,23 @@ def optimize(sources,
 
     if function_type in SINGLE_OBJECTIVE_FUNCTIONS:
         # Do the single objective optimization
-        logging.info("Running single objective optimization")
-        res, values_over_iterations = run_single_objective_problem(
-            objective_function, bounds, compute_function_values=vis)
+        optimization_logger.info("Running single objective optimization")
+        res = run_single_objective_problem(
+            objective_function, bounds)
 
         if vis:
             visualize_single_objective_problem(objective_function,
-                                               values_over_iterations,
+                                               res.iter_vals,
                                                sources, bounds, res.x)
+        return res
 
     elif function_type in MULTI_OBJECTIVE_FUNCTIONS:
-        logging.warning("Running mulitobjecitve optimization")
+        optimization_logger.warning("Running mulitobjecitve optimization")
         run_multiobjective_problem(objective_function,
                                    function_type=function_type)
 
 
-def run_single_objective_problem(objective_function, bounds,
-                                 compute_function_values=False):
+def run_single_objective_problem(objective_function, bounds):
     """
     Perform single objective optimization
 
@@ -110,21 +140,21 @@ def run_single_objective_problem(objective_function, bounds,
     def callback(xk, convergence):
         locations_over_iterations.append(xk)
 
-    logging.warning("About to call scipy for optimzation")
+    optimization_logger.warning("About to call scipy for optimzation")
     # This is where the actual optimization occurs
     res = differential_evolution(objective_function, bounds, callback=callback)
-    logging.warning("Completed optimzation")
+    optimization_logger.warning("Completed optimzation")
 
-    if compute_function_values:
-        logging.warning(
-            f"Starting to compute values for plotting. Might be expensive.")
-        values_over_iterations = [objective_function(
-            x) for x in locations_over_iterations]
-        logging.warning(f"Done computing values for plotting")
+    optimization_logger.warning(
+        f"Starting to compute values for plotting. May take a while.")
+    iter_vals = [objective_function(
+        x) for x in locations_over_iterations]
+    optimization_logger.warning(f"Done computing values for plotting")
 
-        return res, values_over_iterations
-    else:
-        return res
+    # set a new field to record the function values over time
+    res.iter_vals = iter_vals
+
+    return res
 
 
 def visualize_single_objective_problem(objective_function,
@@ -166,7 +196,7 @@ def run_multiobjective_problem(algorithm, function_type, verbose=False):
     """
     # optimize the problem using 1,000 function evaluations
     # TODO should this be improved?
-    logging.warning("Running for 1000 iterations. Could be tuned")
+    optimization_logger.warning("Running for 1000 iterations. Could be tuned")
     algorithm.run(1000)
 
     if verbose:
@@ -190,7 +220,7 @@ def run_multiobjective_problem(algorithm, function_type, verbose=False):
     plt.ylabel("The time to alarm")
     plt.title("Pareto optimality curve for the two functions")
     if PAPER_READY:
-        logging.warning("Need to implment figure saving")
+        optimization_logger.warning("Need to implment figure saving")
         plt.savefig(os.path.join("vis", f"{function_type}.png"))
     plt.show()
 
@@ -249,25 +279,25 @@ def make_bounds(bounds, sources, num_detectors):
 #        dest="loglevel",
 #        help="set loglevel to INFO",
 #        action="store_const",
-#        const=logging.INFO)
+#        const=optimization_logger.INFO)
 #    parser.add_argument(
 #        "-vv",
 #        "--very-verbose",
 #        dest="loglevel",
 #        help="set loglevel to DEBUG",
 #        action="store_const",
-#        const=logging.DEBUG)
+#        const=optimization_logger.DEBUG)
 #    return parser.parse_args(args)
 #
 #
-# def setup_logging(loglevel):
-#    """Setup basic logging
+# def setup_optimization_logger(loglevel):
+#    """Setup basic optimization_logger
 #
 #    Args:
 #      loglevel (int): minimum loglevel for emitting messages
 #    """
 #    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
-#    logging.basicConfig(level=loglevel, stream=sys.stdout,
+#    optimization_logger.basicConfig(level=loglevel, stream=sys.stdout,
 #                        format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 #
 #
@@ -278,10 +308,10 @@ def make_bounds(bounds, sources, num_detectors):
 #      args ([str]): command line parameter list
 #    """
 #    args = parse_args(args)
-#    setup_logging(args.loglevel)
-#    _logger.debug("Starting crazy calculations...")
+#    setup_optimization_logger(args.loglevel)
+#    optimization_logger.debug("Starting crazy calculations...")
 #    print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
-#    _logger.info("Script ends here")
+#    optimization_logger.info("Script ends here")
 #
 #
 # def run():

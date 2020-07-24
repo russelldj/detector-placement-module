@@ -11,6 +11,8 @@ from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE)
 from .functions import convert_to_spherical_from_points
 from .visualization import visualize_time_to_alarm
 
+smoke_logger = logging.getLogger("smoke")
+
 
 class SmokeSource():
     """Represents the smoke source and its time to alarm"""
@@ -38,7 +40,7 @@ class SmokeSource():
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
-        logging.warning(f"Beginning to load {data_path}")
+        smoke_logger.info(f"Beginning to load {data_path}")
         if os.path.isfile(data_path):
             self.load_file(data_path)
         elif os.path.isdir(data_path):
@@ -48,7 +50,7 @@ class SmokeSource():
                 f"data path {data_path} was niether a directory nor a file.")
         assert self.concentrations is not None
         assert self.XYZ is not None
-        logging.warning(f"done loading {data_path}")
+        smoke_logger.info(f"done loading {data_path}")
 
     def load_file(self, data_file):
         """
@@ -183,7 +185,7 @@ class SmokeSource():
         # Get all of the concentrations
         num_timesteps = self.concentrations.shape[0]
         # TODO make this a logger again
-        logging.warning(
+        smoke_logger.info(
             f'There are {self.concentrations.shape[0]} timesteps and' +
             f' {self.concentrations.shape[1]} locations')
 
