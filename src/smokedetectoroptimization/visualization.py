@@ -89,29 +89,18 @@ def visualize_3D_with_final(smoke_source, final_locations=None,
         existing plotter to use
     """
     visualization_logger.warning(
-        "Showing a 3D plot of time to alarm with final locations in red")
+        "Showing a 3D plot of time to alarm with final locations in green")
     # TODO update this to accomodate the new smoke sources
-    plotter = visualize_3D(smoke_source.parameterized_locations,
+    plotter = visualize_3D(smoke_source.XYZ,
                            smoke_source.time_to_alarm,
                            label=label, plotter=plotter, show=False)
 
-    # These parameterize the space we optimizaed over
-    # All of these X, Y, Z, x, y, z, time_to_alarm should be the same
-    # length with corresponding indices
-    parameterized_locations = smoke_source.parameterized_locations
-    dimensionality = parameterized_locations.shape[1]
+    closest_params_XYZs = smoke_source.get_closest_points(final_locations)
+    XYZs = [point[1] for point in closest_params_XYZs]
 
-    XYZ = smoke_source.parameterized_locations
-
-    for i in range(0, len(final_locations), dimensionality):
-        final_location = final_locations[i:i+dimensionality]
-        # Find the index of the nearest point
-        diffs = parameterized_locations - final_location
-        dists = np.linalg.norm(diffs, axis=1)
-        min_loc = np.argmin(dists)
-        closest_point = XYZ[min_loc, :]
-        highlight = pv.Sphere(radius=0.15, center=closest_point)
-        plotter.add_mesh(highlight, color="red")
+    for XYZ in XYZs:
+        highlight = pv.Sphere(radius=0.15, center=XYZ)
+        plotter.add_mesh(highlight, color="green")
 
     plotter.show()
 
@@ -135,7 +124,10 @@ def visualize_3D(XYZ, time_to_alarm,
         plotter = pv.Plotter()
     mesh = pv.PolyData(XYZ)
     # This will colormap the values
-    plotter.add_mesh(mesh, scalars=time_to_alarm,  stitle='Time to alarm')
+
+    cmap = plt.cm.get_cmap("inferno")
+    plotter.add_mesh(mesh, scalars=time_to_alarm,
+                     stitle='Time to alarm', cmap=cmap)
     # Don't show so other data can be added easily
     if show:
         plotter.show(screenshot="vis.png")
@@ -173,11 +165,6 @@ def visualize_time_to_alarm(parameterized_locations, time_to_alarm, num_samples,
             else:
                 plt.savefig("vis/TimeToAlarmDots.png")
         plt.show()
-    elif parameterizing_dimensionality == 3:
-        visualize_3D(parameterized_locations, time_to_alarm)
-    else:
-        visualization_logger.error(
-            "visualize_time_to_alarm only supports data with 2 or 3 dimensions but {parameterizing_dimensionality} were given")
 
 
 def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,

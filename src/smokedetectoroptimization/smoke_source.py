@@ -221,13 +221,13 @@ class SmokeSource():
             parameterized_point, XYZ_point = closest_point
             tags = []
             for i, axis_label in enumerate(self.axis_labels):
-                tags.append(f"{axis_label} : {parameterized_point[i]}")
+                tags.append(f"{axis_label[:-1]} : {parameterized_point[i]}")
             parmaterized_description = ", ".join(tags)
             print(f"Parameterized, {parmaterized_description}")
 
             tags = []
             for i, axis in enumerate(["X", "Y", "Z"]):
-                tags.append(f"{axis[:-1]} : {XYZ_point[i]}")
+                tags.append(f"{axis} : {XYZ_point[i]}")
             threeD_description = ", ".join(tags)
             print(f"3D, {threeD_description}")
             print("------------")

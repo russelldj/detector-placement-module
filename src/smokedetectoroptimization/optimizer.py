@@ -31,6 +31,7 @@ from .functions import make_objective_function
 from .constants import (SINGLE_OBJECTIVE_FUNCTIONS, MULTI_OBJECTIVE_FUNCTIONS,
                         PAPER_READY, NUM_EVALUATION_ITERS)
 from .visualization import (visualize_slices, visualize_sources,
+                            visualize_3D_with_final,
                             show_optimization_statistics,
                             show_optimization_runs)
 
@@ -119,6 +120,7 @@ def optimize(sources,
                                                res.iter_vals,
                                                sources, bounds, res.x)
             sources[0].describe_closest_points(res.x)
+            print(f"The final value was {res.iter_vals[-1]}")
 
         return res
 
@@ -178,6 +180,8 @@ def visualize_single_objective_problem(objective_function,
     # compute all the function values
 
     visualize_sources(sources, final_locations)
+    # visualize each time to alarm with the final locations
+    [visualize_3D_with_final(source, final_locations) for source in sources]
 
     max_val = max([np.amax(source.time_to_alarm) for source in sources])
 
@@ -239,88 +243,3 @@ def make_bounds(bounds, sources, num_detectors):
     expanded_bounds = bounds * num_detectors
 
     return expanded_bounds
-
-# def make_objective(smoke_sources, method=""):
-#    """
-#
-#    Args:
-#      smoke_sources List[Tuple[List[Float]]]: integer
-#
-#    Returns:
-#      int: n-th Fibonacci number
-#    """
-#
-#
-# def get_time_to_alarm(data_file):
-#    pass
-#
-#
-# def parse_args(args):
-#    """Parse command line parameters
-#
-#    Args:
-#      args ([str]): command line parameters as list of strings
-#
-#    Returns:
-#      :obj:`argparse.Namespace`: command line parameters namespace
-#    """
-#    parser = argparse.ArgumentParser(
-#        description="Just a Fibonacci demonstration")
-#    parser.add_argument(
-#        "--version",
-#        action="version",
-#        version="SmokeDetectorOptimization {ver}".format(ver=__version__))
-#    parser.add_argument(
-#        dest="n",
-#        help="n-th Fibonacci number",
-#        type=int,
-#        metavar="INT")
-#    parser.add_argument(
-#        "-v",
-#        "--verbose",
-#        dest="loglevel",
-#        help="set loglevel to INFO",
-#        action="store_const",
-#        const=optimization_logger.INFO)
-#    parser.add_argument(
-#        "-vv",
-#        "--very-verbose",
-#        dest="loglevel",
-#        help="set loglevel to DEBUG",
-#        action="store_const",
-#        const=optimization_logger.DEBUG)
-#    return parser.parse_args(args)
-#
-#
-# def setup_optimization_logger(loglevel):
-#    """Setup basic optimization_logger
-#
-#    Args:
-#      loglevel (int): minimum loglevel for emitting messages
-#    """
-#    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
-#    optimization_logger.basicConfig(level=loglevel, stream=sys.stdout,
-#                        format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
-#
-#
-# def main(args):
-#    """Main entry point allowing external calls
-#
-#    Args:
-#      args ([str]): command line parameter list
-#    """
-#    args = parse_args(args)
-#    setup_optimization_logger(args.loglevel)
-#    optimization_logger.debug("Starting crazy calculations...")
-#    print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
-#    optimization_logger.info("Script ends here")
-#
-#
-# def run():
-#    """Entry point for console_scripts
-#    """
-#    main(sys.argv[1:])
-#
-#
-# if __name__ == "__main__":
-#    run()
