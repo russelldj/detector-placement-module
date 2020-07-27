@@ -214,6 +214,64 @@ class SmokeSource():
         time_to_alarm = np.array(time_to_alarm)
         return time_to_alarm, self.concentrations
 
+    def describe_closest_points(self, parameterized_points):
+        closest_parameterized_XYZs = self.get_closest_points(
+            parameterized_points)
+        for closest_point in closest_parameterized_XYZs:
+            parameterized_point, XYZ_point = closest_point
+            tags = []
+            for i, axis_label in enumerate(self.axis_labels):
+                tags.append(f"{axis_label} : {parameterized_point[i]}")
+            parmaterized_description = ", ".join(tags)
+            print(f"Parameterized, {parmaterized_description}")
+
+            tags = []
+            for i, axis in enumerate(["X", "Y", "Z"]):
+                tags.append(f"{axis[:-1]} : {XYZ_point[i]}")
+            threeD_description = ", ".join(tags)
+            print(f"3D, {threeD_description}")
+            print("------------")
+
+    def get_closest_points(self, parameterized_points):
+        """
+        Return the XYZ point and corresponding parameterization for the nearest
+        simulated point to the final optimized location.
+
+        Does not currently accept masked data
+        """
+        dimensionality = self.get_parameterization_dimensionality()
+
+        # Store the tuples of parameterized and XYZ locations
+        closest_parameterized_XYZs = []
+        for i in range(0, len(parameterized_points), dimensionality):
+            parameterized_point = parameterized_points[i:i + dimensionality]
+            closest_parameterized_XYZs.append(
+                self.get_closest_single_point(parameterized_point))
+        return closest_parameterized_XYZs
+        # closest_parameterized_points, closest_XYZs = list(
+        #    zip(parameterized_XYZs))
+        # return closest_parameterized_points, closest_XYZs
+
+    def get_closest_single_point(self, parameterized_point):
+        """
+        Get the parameterized and coresponding XYZ point closest to the
+        location
+        """
+        diffs = self.parameterized_locations - parameterized_point
+        dists = np.linalg.norm(diffs, axis=1)
+        min_loc = np.argmin(dists)
+        closest_parameterization = self.parameterized_locations[min_loc, :]
+        closest_XYZ = self.XYZ[min_loc, :]
+
+        return (closest_parameterization, closest_XYZ)
+
+    def get_parameterization_dimensionality(self):
+        """get the parameterization of the underlying parameterization"""
+        if self.parameterized_locations is None:
+            raise ValueError("Load data first")
+
+        return self.parameterized_locations.shape[1]
+
     def set_infeasible(self, infeasible_region):
         """Set some region of the XYZ space as infeasible"""
         raise NotImplementedError()

@@ -118,6 +118,8 @@ def optimize(sources,
             visualize_single_objective_problem(objective_function,
                                                res.iter_vals,
                                                sources, bounds, res.x)
+            sources[0].describe_closest_points(res.x)
+
         return res
 
     elif function_type in MULTI_OBJECTIVE_FUNCTIONS:
