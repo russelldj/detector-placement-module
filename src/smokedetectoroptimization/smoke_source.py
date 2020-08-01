@@ -30,6 +30,8 @@ class SmokeSource():
         self.parameterized_locations = None
         self.axis_labels = None
         self.time_to_alarm = None
+        self.max_concentration = None
+        self.metric = None
 
         self.load_data(data_path)
         self.get_time_to_alarm(
@@ -124,6 +126,7 @@ class SmokeSource():
             self,
             alarm_threshold=ALARM_THRESHOLD,
             parameterization="phi_theta",
+            metric="time_to_alarm",
             vis=False,
             write_figs=PAPER_READY):
         """
@@ -131,14 +134,14 @@ class SmokeSource():
 
         alarm_threshold : Float
             What concentraion will trigger the detector
-        vis : Boolean
-            Should it be shown
-        spherical_projection : Boolean
-            Should the data be projected into spherical coordinates
-        write_figs : Boolean
-            Should you write out figures to ./vis/
         parameterization : str
             'x_y' 'y_z' 'x_z' 'x_y_z' 'phi_theta' How to parameterize the data
+        metric : str
+            "time_to_alarm", "max_consentration".
+        vis : Boolean
+            Should it be shown
+        write_figs : Boolean
+            Should you write out figures to ./vis/
 
         Returns None
         """
@@ -146,6 +149,7 @@ class SmokeSource():
         self.time_to_alarm, concentrations = self.compute_time_to_alarm(
             alarm_threshold)
         _, num_samples = concentrations.shape
+        self.max_concentration = np.amax(concentrations, axis=0)
 
         if parameterization == "xy":
             self.parameterized_locations = self.XYZ[:, :2].copy()
@@ -169,6 +173,13 @@ class SmokeSource():
         else:
             raise ValueError(
                 f"parameterization {parameterization} wasn't valid")
+
+        if metric == "time_to_alarm":
+            self.metric = self.time_to_alarm
+        elif metric == "max_concentration":
+            self.metric = self.max_concentration
+        else:
+            raise ValueError(f"metric {metric} not suppored")
 
         if vis:
             visualize_time_to_alarm(

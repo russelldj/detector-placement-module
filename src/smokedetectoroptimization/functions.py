@@ -8,7 +8,12 @@ from platypus import (NSGAII, Problem, Real, Binary, CompoundOperator,
                       SBX, HUX, PM, BitFlip)
 
 from .constants import (INTERPOLATION_METHOD, BIG_NUMBER,
-                        SINGLE_OBJECTIVE_FUNCTIONS, MULTI_OBJECTIVE_FUNCTIONS)
+                        SINGLE_OBJECTIVE_FUNCTIONS_MC,
+                        SINGLE_OBJECTIVE_FUNCTIONS_TTA,
+                        MULTI_OBJECTIVE_FUNCTIONS,
+                        WORST_CASE_FUNCTIONS,
+                        FASTEST_FUNCTIONS,
+                        SECOND_FUNCTIONS)
 from .constants import *
 
 
@@ -47,12 +52,13 @@ def make_counting_objective():
     return counting_func
 
 
-def make_lookup(simulated_points, time_to_alarm, interpolation_method=INTERPOLATION_METHOD):
+def make_lookup(simulated_points, metric, interpolation_method=INTERPOLATION_METHOD):
     """
     simulated_points : np.ArrayLike(Float), (n, m)
         n samples, m parameterizing dimensions
-    time_to_alarm : ArrayLike[Float]
-        The time to alarm corresponding to each of the locations
+    metric : ArrayLike[Float]
+        The metric corresponding to each of the locations. Likely represents time
+        to alarm or max concentration
     interpolation_method : str
         The method for interpolating the data
     -----returns-----
@@ -70,7 +76,7 @@ def make_lookup(simulated_points, time_to_alarm, interpolation_method=INTERPOLAT
                 len(query_point), num_dimensions))
 
         interpolated_time = griddata(
-            simulated_points, time_to_alarm, query_point,
+            simulated_points, metric, query_point,
             method=interpolation_method)
         return interpolated_time
     return ret_func
@@ -106,7 +112,7 @@ def make_objective_function(
 def make_single_objective_function(
         sources,
         verbose=False,
-        function_type="worst_case",
+        function_type="worst_case_TTA",
         masked=False,
         interpolation_method="nearest"):
     """
@@ -131,16 +137,19 @@ def make_single_objective_function(
     # Create data which will be used inside of the function to be returned
     funcs = []
     # The number of points parametrizing the space
-    dimensionality = 2
     for source in sources:
         # create all of the functions mapping from a location to a time
         # This is notationionally dense but I think it is worthwhile
         # We are creating a list of functions for each of the smoke sources
         # The make_lookup function does that
         locations = source.parameterized_locations
-        time_to_alarm = source.time_to_alarm
+        if function_type in SINGLE_OBJECTIVE_FUNCTIONS_TTA:
+            metric = source.time_to_alarm
+        elif function_type in SINGLE_OBJECTIVE_FUNCTIONS_MC:
+            metric = source.max_concentration
+        else: raise ValueError(f"function type {function_type}not supprted")
 
-        funcs.append(make_lookup(locations, time_to_alarm,
+        funcs.append(make_lookup(locations, metric,
                                  interpolation_method=interpolation_method))
     dimensionality = locations.shape[1]
 
@@ -185,15 +194,15 @@ def make_single_objective_function(
         #print(f"all_times : {all_times}")
         #print(f"all_times.shape : {all_times.shape}")
 
-        if function_type == "worst_case":
+        if function_type in WORST_CASE_FUNCTIONS:
             time_for_each_source = np.amin(all_times, axis=0)
             worst_source = np.amax(time_for_each_source)
             ret_val = worst_source
-        elif function_type == "second":
+        elif function_type in SECOND_FUNCTIONS:
             time_for_each_source = np.amin(all_times, axis=0)
             second_source = np.sort(time_for_each_source)[1]
             ret_val = second_source
-        elif function_type == "fastest":
+        elif function_type in FASTEST_FUNCTIONS:
             # print(all_times)
             # this just cares about the source-detector pair that alarms fastest
             ret_val = np.amin(all_times)
