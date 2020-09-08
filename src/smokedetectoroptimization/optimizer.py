@@ -171,7 +171,7 @@ def visualize_single_objective_problem(objective_function,
     # visualize each time to alarm with the final locations
     [visualize_3D_with_final(source, final_locations) for source in sources]
 
-    max_val = max([np.amax(source.time_to_alarm) for source in sources])
+    max_val = max([np.amax(source.metric) for source in sources])
 
     axis_labels = sources[0].axis_labels
     is_3d = sources[0].parameterized_locations.shape[1] == 3

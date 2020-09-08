@@ -92,7 +92,7 @@ def visualize_3D_with_final(smoke_source, final_locations=None,
         "Showing a 3D plot of time to alarm with final locations in green")
     # TODO update this to accomodate the new smoke sources
     plotter = visualize_3D(smoke_source.XYZ,
-                           smoke_source.time_to_alarm,
+                           smoke_source.metric,
                            label=label, plotter=plotter, show=False)
 
     closest_params_XYZs = smoke_source.get_closest_points(final_locations)
@@ -105,13 +105,13 @@ def visualize_3D_with_final(smoke_source, final_locations=None,
     plotter.show()
 
 
-def visualize_3D(XYZ, time_to_alarm,
+def visualize_3D(XYZ, metric,
                  label="3D visualization of the time to alarm",
                  plotter=None, show=True):
     """
     XYZ_locs : (X, Y, Z)
         The 3D locations of the points
-    time_to_alarm : ArrayLike[Floats]
+    metric : ArrayLike[Floats]
         How long it takes for each point to alarm
     fraction : float
         how much of the points to visualize
@@ -126,7 +126,7 @@ def visualize_3D(XYZ, time_to_alarm,
     # This will colormap the values
 
     cmap = plt.cm.get_cmap("inferno")
-    plotter.add_mesh(mesh, scalars=time_to_alarm,
+    plotter.add_mesh(mesh, scalars=metric,
                      stitle='Time to alarm', cmap=cmap)
     # Don't show so other data can be added easily
     if show:
@@ -134,7 +134,7 @@ def visualize_3D(XYZ, time_to_alarm,
     return plotter
 
 
-def visualize_time_to_alarm(parameterized_locations, time_to_alarm, num_samples,
+def visualize_time_to_alarm(parameterized_locations, metric, num_samples,
                             concentrations, num_samples_visualized=10,
                             smoothed=SMOOTH_PLOTS, spherical=True,
                             write_figs=PAPER_READY,
@@ -151,7 +151,7 @@ def visualize_time_to_alarm(parameterized_locations, time_to_alarm, num_samples,
         cb = pmesh_plot(
             parameterized_locations[:, 0],
             parameterized_locations[:, 1],
-            time_to_alarm,
+            metric,
             plt,
             num_samples=70, smooth=smoothed,
             cmap=mpl.cm.inferno)  # choose grey to plot color over
@@ -167,7 +167,7 @@ def visualize_time_to_alarm(parameterized_locations, time_to_alarm, num_samples,
         plt.show()
 
 
-def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,
+def visualize_additional_time_to_alarm_info(X, Y, Z, metric,
                                             num_samples, concentrations,
                                             num_samples_visualized=10,
                                             smoothed=SMOOTH_PLOTS,
@@ -177,7 +177,7 @@ def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,
     cb = pmesh_plot(
         X,
         Y,
-        time_to_alarm,
+        metric,
         plt,
         num_samples=70,
         cmap=mpl.cm.Greys)  # choose grey to plot color over
@@ -223,7 +223,7 @@ def visualize_additional_time_to_alarm_info(X, Y, Z, time_to_alarm,
         "The histogram of the final nonzero log_{10} smoke concentrations")
     plt.show()
 
-    plt.hist(time_to_alarm)
+    plt.hist(metric)
     plt.xlabel("Time to alarm (timesteps)")
     plt.ylabel("Frequency of occurance")
     if write_figs:
@@ -399,8 +399,8 @@ def visualize_sources(sources, final_locations):
             x = source.parameterized_locations[:, 0]
             y = source.parameterized_locations[:, 1]
             axis_labels = source.axis_labels
-            time_to_alarm = source.time_to_alarm
-            cb = pmesh_plot(x, y, time_to_alarm, ax[i])
+            metric = source.metric
+            cb = pmesh_plot(x, y, metric, ax[i])
 
             detectors = ax[i].scatter(final_locations[x_detector_inds],
                                       final_locations[y_detector_inds],
