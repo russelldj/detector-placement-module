@@ -10,7 +10,7 @@ SMOKE_FOLDERS = [os.path.join("data", "first_computer_full3D"),
 FALSE_ALARM_FOLDERS = [os.path.join("data", "bike_full3D")]
 
 VISUALIZE = False
-# This is the NASA-stated
+# This is the NASA-stated threshold for a detector
 ALARM_THRESHOLD = 0.5e-6
 FALSE_ALARM_THRESHOLD = 4e-20
 BIG_NUMBER = 1000

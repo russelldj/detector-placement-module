@@ -102,7 +102,7 @@ def visualize_3D_with_final(smoke_source, final_locations=None,
         highlight = pv.Sphere(radius=0.15, center=XYZ)
         plotter.add_mesh(highlight, color="green")
 
-    plotter.show()
+    plotter.show(True)
 
 
 def visualize_3D(XYZ, metric,
@@ -129,6 +129,8 @@ def visualize_3D(XYZ, metric,
     plotter.add_mesh(mesh, scalars=metric,
                      stitle='Time to alarm', cmap=cmap)
     # Don't show so other data can be added easily
+    import pdb
+    pdb.set_trace()
     if show:
         plotter.show(screenshot="vis.png")
     return plotter

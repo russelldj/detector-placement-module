@@ -59,6 +59,50 @@ def evaluate_optimization(sources,
     return statistics
 
 
+def evaluate_locations(locations,
+             sources,
+             function_type="worst_case",
+             bad_sources=None,
+             vis=True,
+             interpolation_method="nearest",
+             parameterized=False):
+    """similar arguements to optimize. Except instead
+    of doing optimization, it just reports the function value for the location
+
+    locations : ArrayLike
+        Concatenated detector locations to evaluate provided in XYZ space
+    parameterized : bool
+        Are the locations parameterized
+    """
+    if len(sources) == 0:
+        raise ValueError("Empty sources")
+
+    bounds = None
+    NUM_DETECTORS = 3
+
+    parameterized_XYZ_points = sources[0].get_closest_points(locations,
+                                                         parametrized=False)
+    parameterized_points = [d["parameterized"] for
+                            d in parameterized_XYZ_points]
+
+    # Flatten the nested list of locations
+    parameterized_points = sum([x.tolist() for x in parameterized_points], [])
+
+    # TODO calculate the number of dectectors from the location
+    optimization_logger.info("Making bounds")
+    bounds = make_bounds(bounds, sources, NUM_DETECTORS)
+
+    optimization_logger.info("Making the objective function")
+    # compute the bounds
+    objective_function = make_objective_function(
+        sources=sources,
+        bounds=bounds,
+        function_type=function_type,
+        bad_sources=bad_sources,
+        interpolation_method=interpolation_method)
+    objective_value = objective_function(parameterized_points)
+    return objective_value
+
 def optimize(sources,
              num_detectors=1,
              function_type="worst_case",
@@ -83,7 +127,7 @@ def optimize(sources,
     multiobjective : Boolean
         Should really be called multiobjective. Runs multiobjective
     function_type : str
-        What function to optimize : 'worst_case', ''
+        What function to optimize : 'worst_case', TODO
     """
     optimization_logger.info("Making bounds")
     bounds = make_bounds(bounds, sources, num_detectors)

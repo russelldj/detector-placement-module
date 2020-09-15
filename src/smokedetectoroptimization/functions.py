@@ -104,7 +104,7 @@ def make_objective_function(
             interpolation_method=interpolation_method,
             bad_sources=bad_sources)
     else:
-        raise ValueError(f"function type {function_type} not valid")
+        raise ValueError(f"function type {function_type} not valid. Options are: {SINGLE_OBJECTIVE_FUNCTIONS + MULTI_OBJECTIVE_FUNCTIONS}")
 
     return objective_function
 

@@ -243,38 +243,47 @@ class SmokeSource():
             print(f"3D, {threeD_description}")
             print("------------")
 
-    def get_closest_points(self, parameterized_points):
+    def get_closest_points(self, points, parametrized =True):
         """
         Return the XYZ point and corresponding parameterization for the nearest
         simulated point to the final optimized location.
 
         Does not currently accept masked data
         """
-        dimensionality = self.get_parameterization_dimensionality()
+        if parametrized:
+            dimensionality = self.get_parameterization_dimensionality()
+        else:
+            dimensionality = 3
 
         # Store the tuples of parameterized and XYZ locations
         closest_parameterized_XYZs = []
-        for i in range(0, len(parameterized_points), dimensionality):
-            parameterized_point = parameterized_points[i:i + dimensionality]
+        for i in range(0, len(points), dimensionality):
+            point = points[i:i + dimensionality]
             closest_parameterized_XYZs.append(
-                self.get_closest_single_point(parameterized_point))
+                self.get_closest_single_point(point,
+                                              parametrized=parametrized))
         return closest_parameterized_XYZs
         # closest_parameterized_points, closest_XYZs = list(
         #    zip(parameterized_XYZs))
         # return closest_parameterized_points, closest_XYZs
 
-    def get_closest_single_point(self, parameterized_point):
+    def get_closest_single_point(self, point, parametrized=True):
         """
         Get the parameterized and coresponding XYZ point closest to the
         location
         """
-        diffs = self.parameterized_locations - parameterized_point
+        if parametrized:
+            diffs = self.parameterized_locations - point
+        else:
+            diffs = self.XYZ - point
+
         dists = np.linalg.norm(diffs, axis=1)
         min_loc = np.argmin(dists)
         closest_parameterization = self.parameterized_locations[min_loc, :]
         closest_XYZ = self.XYZ[min_loc, :]
 
-        return (closest_parameterization, closest_XYZ)
+        return {"parameterized" : closest_parameterization,
+                "XYZ" : closest_XYZ}
 
     def get_parameterization_dimensionality(self):
         """get the parameterization of the underlying parameterization"""
