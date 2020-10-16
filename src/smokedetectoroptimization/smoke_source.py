@@ -158,7 +158,6 @@ class SmokeSource():
             self.parameterized_locations = self.XYZ[:, 1:].copy()
             self.axis_labels = ("y locations", "z locations")
         elif parameterization == "xz":
-            pdb.set_trace()
             # take the 0th and 2nd columns
             self.parameterized_locations = self.XYZ[:, 0:4:2].copy()
             self.axis_labels = ("x locations", "z locations")

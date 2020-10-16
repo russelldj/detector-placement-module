@@ -70,7 +70,6 @@ def plot_sphere(phi, theta, cs, r=1):
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(xs, ys, zs)
     plt.savefig("sphere.png")
-    pdb.set_trace()
 
 
 def visualize_3D_with_final(smoke_source, final_locations=None,
@@ -129,8 +128,6 @@ def visualize_3D(XYZ, metric,
     plotter.add_mesh(mesh, scalars=metric,
                      stitle='Time to alarm', cmap=cmap)
     # Don't show so other data can be added easily
-    import pdb
-    pdb.set_trace()
     if show:
         plotter.show(screenshot="vis.png")
     return plotter
