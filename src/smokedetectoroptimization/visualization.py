@@ -95,13 +95,13 @@ def visualize_3D_with_final(smoke_source, final_locations=None,
                            label=label, plotter=plotter, show=False)
 
     closest_params_XYZs = smoke_source.get_closest_points(final_locations)
-    XYZs = [point[1] for point in closest_params_XYZs]
+    XYZs = [point['XYZ'] for point in closest_params_XYZs]
 
     for XYZ in XYZs:
         highlight = pv.Sphere(radius=0.15, center=XYZ)
         plotter.add_mesh(highlight, color="green")
 
-    plotter.show(True)
+    plotter.show()
 
 
 def visualize_3D(XYZ, metric,
