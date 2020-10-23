@@ -147,7 +147,8 @@ def make_single_objective_function(
             metric = source.time_to_alarm
         elif function_type in SINGLE_OBJECTIVE_FUNCTIONS_MC:
             metric = source.max_concentration
-        else: raise ValueError(f"function type {function_type}not supprted")
+        else:
+            raise ValueError(f"function type {function_type}not supprted")
 
         funcs.append(make_lookup(locations, metric,
                                  interpolation_method=interpolation_method))
@@ -306,7 +307,7 @@ def make_multiobjective_function_competing(
     objective_function = make_single_objective_function(
         sources, interpolation_method=interpolation_method)  # the function to be optimized
     bad_objective_function = make_single_objective_function(
-        bad_sources, function_type="fastest",
+        bad_sources, function_type="worst_case_TTA",
         interpolation_method=interpolation_method)  # the function to be optimized
 
     def multiobjective_func(x):  # this is the double objective function
