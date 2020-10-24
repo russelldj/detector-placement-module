@@ -30,6 +30,8 @@ SMOOTH_PLOTS = False
 
 # Change how sample points are interpolated
 INTERPOLATION_METHOD = "nearest"  # "linear" "cubic"
+# How many samples per axis to interpolate when visualizing
+NUM_INTERPOLATION_SAMPLES=70
 
 WORST_CASE_TTA = "worst_case_TTA"
 SECOND_TTA = "second_TTA"

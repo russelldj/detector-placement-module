@@ -133,11 +133,12 @@ def visualize_3D(XYZ, metric,
     return plotter
 
 
-def visualize_time_to_alarm(parameterized_locations, metric, num_samples,
-                            concentrations, num_samples_visualized=10,
-                            smoothed=SMOOTH_PLOTS, spherical=True,
-                            write_figs=PAPER_READY,
-                            axis_labels=("x location", "y location")):
+def visualize_metric(parameterized_locations, metric, num_samples,
+                     num_samples_visualized=10,
+                     interpolation=SMOOTH_PLOTS,
+                     spherical=True,
+                     write_figs=PAPER_READY,
+                     axis_labels=("x location", "y location")):
     """
     show the time to alarm plots
 
@@ -152,18 +153,23 @@ def visualize_time_to_alarm(parameterized_locations, metric, num_samples,
             parameterized_locations[:, 1],
             metric,
             plt,
-            num_samples=70, smooth=smoothed,
+            num_samples=70,
+            interpolation=interpolation,
             cmap=mpl.cm.inferno)  # choose grey to plot color over
 
         plt.colorbar(cb)  # Add a colorbar to a plot
         plt.xlabel(axis_labels[0])
         plt.ylabel(axis_labels[1])
         if write_figs:
-            if smoothed:
+            if interpolation:
                 plt.savefig("vis/TimeToAlarmSmoothed.png")
             else:
                 plt.savefig("vis/TimeToAlarmDots.png")
         plt.show()
+    elif parameterized_locations == 3:
+        visualization_logger.warning("Visualization for 3D parameterizations not implemented yet")
+    else:
+        raise ValueError(f"Parameterizations of dimension {parameterizing_dimensionality} are generally not supported. Check your code.")
 
 
 def visualize_additional_time_to_alarm_info(X, Y, Z, metric,
@@ -231,15 +237,6 @@ def visualize_additional_time_to_alarm_info(X, Y, Z, metric,
         "The histogram of the time to alarm")
     plt.show()
 
-    # show all the max_concentrations
-    # This takes an extrodinarily long time
-    # xs, ys = np.meshgrid(
-    #    range(concentrations.shape[1]), range(concentrations.shape[0]))
-    # pdb.set_trace()
-    # cb = plt.scatter(xs.flatten(), ys.flatten(), c=concentrations.flatten())
-    # plt.colorbar(cb)  # Add a colorbar to a plot
-    # plt.show()
-
 
 def pmesh_plot(
         xs,
@@ -250,7 +247,7 @@ def pmesh_plot(
         num_samples=50,
         is_3d=False,
         log=False,  # log scale for plotting
-        smooth=SMOOTH_PLOTS,
+        interpolation=SMOOTH_PLOTS,
         cmap=plt.cm.inferno):
     """
     conveneince function to easily plot the sort of data we have
@@ -258,7 +255,7 @@ def pmesh_plot(
         Plot the interpolated values rather than the actual points
 
     """
-    if smooth:
+    if interpolation:
         points = np.stack((xs, ys), axis=1)
         sample_points = (np.linspace(min(xs), max(xs), num_samples),
                          np.linspace(min(ys), max(ys), num_samples))
@@ -266,7 +263,7 @@ def pmesh_plot(
         flattened_xis = xis.flatten()
         flattened_yis = yis.flatten()
         interpolated = griddata(
-            points, values, (flattened_xis, flattened_yis))
+            points, values, (flattened_xis, flattened_yis), method=interpolation)
         reshaped_interpolated = np.reshape(interpolated, xis.shape)
         if max_val is not None:
             if log:

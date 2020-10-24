@@ -7,15 +7,15 @@ import pdb
 import io
 import logging
 
-from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE)
+from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE, NUM_INTERPOLATION_SAMPLES)
 from .functions import convert_to_spherical_from_points
-from .visualization import visualize_time_to_alarm
+from .visualization import visualize_metric
 
 smoke_logger = logging.getLogger("smoke")
 
 
 class SmokeSource():
-    """Represents the smoke source and its time to alarm"""
+    """Represents the smoke source and its metric values"""
 
     def __init__(self,
                  data_path,
@@ -181,13 +181,59 @@ class SmokeSource():
             raise ValueError(f"metric {metric} not suppored")
 
         if vis:
-            visualize_time_to_alarm(
-                self.parameterized_locations,
-                self.time_to_alarm,
-                num_samples=num_samples,
-                concentrations=concentrations,
-                axis_labels=self.axis_labels,
-                write_figs=write_figs)
+            self.visualize_metric(write_figs=write_figs)
+
+    def visualize_metric(self,
+                         *,
+                         interpolation=None,
+                         num_samples=NUM_INTERPOLATION_SAMPLES,
+                         write_figs=False,
+                         points_fraction=1.0,
+                         random_seed=0):
+        """
+        Visualize the metric value for this source
+        interpolation : None | str
+            What strategy to use for interpolation
+        num_samples : int
+            How many samples to use for interpolation in each dimension
+        write_figs : bool
+            Should you write the figure to vis/
+        points_fraction : float
+            between [0, 1], what randomly selected portion to visualize
+        random_seed : int | None
+            Random seed to ensure consistent results. Use None to get a random
+            result
+        """
+        if points_fraction < 1.0:
+            if points_fraction < 0:
+                raise ValueError(f"Can't visualize a fraction {points_fraction} less than 0")
+
+            num_points = self.metric.shape[0]
+            np.random.seed(random_seed)
+            sample_inds = np.random.choice(num_points,
+                                           size=int(num_points * points_fraction))
+            # Re-seed the generator so we don't interfere with future processes
+            np.random.seed(None)
+            parameterized_locations = self.parameterized_locations[sample_inds, :]
+            metric = self.metric[sample_inds]
+        else:
+            parameterized_locations = self.parameterized_locations
+            metric = self.metric
+
+
+        visualize_metric(
+            parameterized_locations,
+            metric,
+            interpolation=interpolation,
+            num_samples=num_samples,
+            axis_labels=self.axis_labels,
+            write_figs=write_figs)
+
+    def visualize_3D():
+        """
+        Visualize the smoke source in 3D
+        """
+
 
     def compute_time_to_alarm(self, alarm_threshold):
         """This actually does the computation for time to alarm"""
@@ -225,6 +271,10 @@ class SmokeSource():
         return time_to_alarm, self.concentrations
 
     def describe_closest_points(self, parameterized_points):
+        """
+        Provide information about the closest XYZ points to a parameterized
+        point
+        """
         closest_parameterized_XYZs = self.get_closest_points(
             parameterized_points)
         for closest_point in closest_parameterized_XYZs:
@@ -262,9 +312,6 @@ class SmokeSource():
                 self.get_closest_single_point(point,
                                               parametrized=parametrized))
         return closest_parameterized_XYZs
-        # closest_parameterized_points, closest_XYZs = list(
-        #    zip(parameterized_XYZs))
-        # return closest_parameterized_points, closest_XYZs
 
     def get_closest_single_point(self, point, parametrized=True):
         """
