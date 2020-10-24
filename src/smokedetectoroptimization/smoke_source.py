@@ -1,15 +1,17 @@
 #! /usr/bin/env
-import pandas as pd
-import os
-import numpy as np
 from glob import glob
 import pdb
+import os
+
+import pandas as pd
+import numpy as np
 import io
 import logging
+import matplotlib.pyplot as plt
 
 from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE, NUM_INTERPOLATION_SAMPLES)
 from .functions import convert_to_spherical_from_points
-from .visualization import visualize_metric
+from .visualization import visualize_metric, visualize_3D
 
 smoke_logger = logging.getLogger("smoke")
 
@@ -26,6 +28,7 @@ class SmokeSource():
         self.data_path = data_path
 
         self.concentrations = None
+        self.alarmed = None
         self.XYZ = None
         self.parameterized_locations = None
         self.axis_labels = None
@@ -86,7 +89,7 @@ class SmokeSource():
                              timestep_data['y-coordinate'].values,
                              timestep_data['z-coordinate'].values), axis=1)
 
-        self.concentrations = np.stack(concentrations_list)
+        self.concentrations = np.stack(concentrations_list).transpose()
 
     def load_directory(self, data_directory):
         """
@@ -119,7 +122,7 @@ class SmokeSource():
                              timestep_data['y-coordinate'].values,
                              timestep_data['z-coordinate'].values), axis=1)
 
-        self.concentrations = np.stack(concentrations_list)
+        self.concentrations = np.stack(concentrations_list).transpose()
 
     # Might be the first victim for @extern
     def get_time_to_alarm(
@@ -149,7 +152,7 @@ class SmokeSource():
         self.time_to_alarm, concentrations = self.compute_time_to_alarm(
             alarm_threshold)
         _, num_samples = concentrations.shape
-        self.max_concentration = np.amax(concentrations, axis=0)
+        self.max_concentration = np.amax(concentrations, axis=1)
 
         if parameterization == "xy":
             self.parameterized_locations = self.XYZ[:, :2].copy()
@@ -220,7 +223,6 @@ class SmokeSource():
             parameterized_locations = self.parameterized_locations
             metric = self.metric
 
-
         visualize_metric(
             parameterized_locations,
             metric,
@@ -229,32 +231,93 @@ class SmokeSource():
             axis_labels=self.axis_labels,
             write_figs=write_figs)
 
-    def visualize_3D():
+    def visualize_3D(self, *, which_metric=None, concentation_timestep=None,
+                     log_concentrations=False, log_lower_bound=-12):
         """
         Visualize the smoke source in 3D
+
+        metric : str
+            {"time_to_alarm", "max_concentration"}, which metric to visualize
+        concentation_timestep : int
+            Which timestep to visualize the concentration for
+        log_concentrations : bool
+            Display the log concentrations
+        log_lower_bound : float
+            The lower bound for displaying logged values
         """
+        if which_metric is None and concentation_timestep is None:
+            smoke_logger.info("Showing the metric")
+            visualize_3D(self.XYZ, self.metric)
+        elif which_metric == "time_to_alarm":
+            smoke_logger.info("Showing the time to alarm")
+            visualize_3D(self.XYZ, self.time_to_alarm)
+        elif which_metric == "max_concentration":
+            smoke_logger.info("Showing the max concentration")
+            visualize_3D(self.XYZ, self.max_concentration)
+        elif isinstance(concentation_timestep, int):
+            timestep_concentrations = self.concentrations[:, concentation_timestep]
+
+            if log_concentrations:
+                timestep_concentrations = np.log10(timestep_concentrations)
+                # Set negative invalid values to something low
+                timestep_concentrations = np.nan_to_num(timestep_concentrations,
+                                                        nan=log_lower_bound)
+                timestep_concentrations = np.clip(timestep_concentrations,
+                                                  a_min=log_lower_bound,
+                                                  a_max=None)
+
+            visualize_3D(self.XYZ, timestep_concentrations)
+        else:
+            raise ValueError("Invalid arguments")
+
+    def visualize_summary_statistics(self, quantiles=(0, 0.75, 0.9, 0.99, 0.999, 0.9999, 1)):
+        """
+        Show summary statistics about the smoke sources
+        """
+        data_quantiles = np.quantile(self.concentrations, quantiles, axis=0)
+        for line, quant in zip(data_quantiles, quantiles):
+            plt.plot(line, label=f"{quant}")
+        plt.legend()
+        plt.xlabel("Timestep")
+        plt.ylabel("Concentration")
+        plt.title("Concentration ")
+        plt.show()
+
+        counts = np.count_nonzero(self.alarmed, axis=0)
+        fraction = counts / self.alarmed.shape[0]
+        plt.plot(fraction)
+        plt.xlabel("Timestep")
+        plt.ylabel("Fraction of locations exceeding threshold concentration")
+        plt.show()
+
+        self.time_to_alarm
+        fraction_alarmed = []
+        num_points, num_timesteps = self.concentrations.shape
+        for timestep in range(num_timesteps):
+            fraction_alarmed.append(np.count_nonzero(self.time_to_alarm <= timestep) / num_points)
+        plt.plot(fraction_alarmed)
+        plt.xlabel("Timestep")
+        plt.ylabel("Fraction of points alarmed")
+        plt.show()
 
 
     def compute_time_to_alarm(self, alarm_threshold):
         """This actually does the computation for time to alarm"""
 
-        # Get all of the concentrations
-        num_timesteps = self.concentrations.shape[0]
-        # TODO make this a logger again
+        num_locations, num_timesteps = self.concentrations.shape
         smoke_logger.info(
-            f'There are {self.concentrations.shape[0]} timesteps and' +
-            f' {self.concentrations.shape[1]} locations')
+            f'There are {num_timesteps} timesteps and' +
+            f' {num_locations} locations')
 
         # Determine which entries have higher concentrations
-        num_timesteps = self.concentrations.shape[0]
-        alarmed = self.concentrations > alarm_threshold
-        nonzero = np.nonzero(alarmed)  # determine where the non zero entries
+        self.alarmed = self.concentrations > alarm_threshold
+        nonzero = np.nonzero(self.alarmed)  # determine where the non zero entries
         # this is pairs indicating that it alarmed at that time and location
-        nonzero_times, nonzero_locations = nonzero
+        nonzero_locations, nonzero_times = nonzero
 
         # TODO see if this can be vectorized
         time_to_alarm = []
-        for loc in range(alarmed.shape[1]):  # All of the possible locations
+        for loc in range(num_locations):  # All of the possible locations
             # the indices for times which have alarmed at that location
             same = (loc == nonzero_locations)
             if np.any(same):  # check if this alarmed at any pointh
