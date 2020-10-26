@@ -166,7 +166,7 @@ def visualize_metric(parameterized_locations, metric, num_samples,
             else:
                 plt.savefig("vis/TimeToAlarmDots.png")
         plt.show()
-    elif parameterized_locations == 3:
+    elif parameterizing_dimensionality == 3:
         visualization_logger.warning("Visualization for 3D parameterizations not implemented yet")
     else:
         raise ValueError(f"Parameterizations of dimension {parameterizing_dimensionality} are generally not supported. Check your code.")
