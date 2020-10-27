@@ -19,7 +19,7 @@ from .functions import make_objective_function
 from .constants import (SINGLE_OBJECTIVE_FUNCTIONS, MULTI_OBJECTIVE_FUNCTIONS,
                         PAPER_READY, NUM_EVALUATION_ITERS)
 from .visualization import (visualize_slices, visualize_sources,
-                            visualize_3D_with_final,
+                            visualize_3D_with_highlights,
                             show_optimization_statistics,
                             show_optimization_runs)
 
@@ -61,7 +61,7 @@ def evaluate_optimization(sources,
 
 def evaluate_locations(locations,
              sources,
-             function_type="worst_case",
+             function_type="worst_case_TTA",
              bad_sources=None,
              vis=True,
              interpolation_method="nearest",
@@ -101,6 +101,10 @@ def evaluate_locations(locations,
         bad_sources=bad_sources,
         interpolation_method=interpolation_method)
     objective_value = objective_function(parameterized_points)
+    if vis:
+        for source in sources:
+            pass
+
     return objective_value
 
 def optimize(sources,

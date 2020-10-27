@@ -72,41 +72,56 @@ def plot_sphere(phi, theta, cs, r=1):
     plt.savefig("sphere.png")
 
 
-def visualize_3D_with_final(smoke_source, final_locations=None,
+def visualize_3D_with_highlights(XYZ, metric, *, highlight_locations=None,
                             label="3D visualization of the time to alarm",
-                            plotter=None):
+                            plotter=None, is_parameterized=True,
+                            **kwargs):
     """
     XYZ : np.array, (n, 3)
         The 3D locations of the points
-    smoke_source : dict
-        The coresponding result from `get_time_to_alarm()``
-    final_locations : [(x, y), (x, y), ...]
+    metric : np.array, (n,)
+        the values to color with
+    highlight_locations : [(x, y), (x, y), ...]
         The location(s) of the detector placements
     show : bool
         whether to show
     plotter : pv.Plotter
         existing plotter to use
+    is_parameterized : bool
+        Are the highlight locations paramaterized
     """
     visualization_logger.warning(
         "Showing a 3D plot of time to alarm with final locations in green")
     # TODO update this to accomodate the new smoke sources
-    plotter = visualize_3D(smoke_source.XYZ,
-                           smoke_source.metric,
-                           label=label, plotter=plotter, show=False)
+    plotter = visualize_3D(XYZ,
+                           metric,
+                           label=label, plotter=plotter, show=False,
+                           **kwargs) # Pass on any keyword arguments
+    if highlight_locations is not None:
+        if is_parameterized:
+            closest_params_XYZs = smoke_source.get_closest_points(highlight_locations)
+            XYZs = [point['XYZ'] for point in closest_params_XYZs]
+        else:
+            num_xyzs = len(highlight_locations) / 3
+            if num_xyzs != int(num_xyzs):
+                raise ValueError("The length of highlight_locations should be divisible by 3")
+            num_xyzs = int(num_xyzs)
+            XYZs = [highlight_locations[i*3:i*3+3] for i in range(num_xyzs)]
 
-    closest_params_XYZs = smoke_source.get_closest_points(final_locations)
-    XYZs = [point['XYZ'] for point in closest_params_XYZs]
+        for XYZ in XYZs:
+            highlight = pv.Sphere(radius=0.15, center=XYZ)
+            plotter.add_mesh(highlight, color="green")
 
-    for XYZ in XYZs:
-        highlight = pv.Sphere(radius=0.15, center=XYZ)
-        plotter.add_mesh(highlight, color="green")
-
-    plotter.show()
+    if isinstance(plotter, pv.PlotterITK):
+        return plotter.show(True)
+    else:
+        return plotter.show()
 
 
 def visualize_3D(XYZ, metric,
                  label="3D visualization of the time to alarm",
-                 plotter=None, show=True):
+                 plotter=None, show=True,
+                 stitle="Time to alarm"):
     """
     XYZ_locs : (X, Y, Z)
         The 3D locations of the points
@@ -122,15 +137,23 @@ def visualize_3D(XYZ, metric,
     if plotter is None:
         plotter = pv.Plotter()
     mesh = pv.PolyData(XYZ)
-    # This will colormap the values
 
+    # This will colormap the values
     cmap = plt.cm.get_cmap("inferno")
-    plotter.add_mesh(mesh, scalars=metric,
-                     stitle='Time to alarm', cmap=cmap)
-    # Don't show so other data can be added easily
-    if show:
-        plotter.show(screenshot="vis.png")
-    return plotter
+    if isinstance(plotter, pv.PlotterITK):
+        plotter.add_mesh(mesh, scalars=metric)
+        if show:
+            return plotter.show(True)
+        else:
+            return plotter
+    else:
+        plotter.add_mesh(mesh, scalars=metric,
+                     stitle=stitle, cmap=cmap)
+        # Leave the option to not show so other data can be added easily
+        if show:
+            plotter.show(screenshot="vis.png")
+
+        return plotter
 
 
 def visualize_metric(parameterized_locations, metric, num_samples,
@@ -417,7 +440,8 @@ def visualize_sources(sources, final_locations):
         for i, source in enumerate(sources):
             # record this for later plotting
             # TODO figure out if this is really required
-            visualize_3D_with_final(source, final_locations=final_locations)
+            visualize_3D_with_highlights(source.XYZ, source.metric,
+                                    highlight_locations=final_locations)
     else:
         visualization_logger.error(
             f"visualize_sources only supports 2 or 3 dimensions but recieved {dimensionality}")

@@ -8,10 +8,11 @@ import numpy as np
 import io
 import logging
 import matplotlib.pyplot as plt
+import pyvista as pv
 
 from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE, NUM_INTERPOLATION_SAMPLES)
 from .functions import convert_to_spherical_from_points
-from .visualization import visualize_metric, visualize_3D
+from .visualization import visualize_metric, visualize_3D, visualize_3D_with_highlights
 
 smoke_logger = logging.getLogger("smoke")
 
@@ -232,7 +233,8 @@ class SmokeSource():
             write_figs=write_figs)
 
     def visualize_3D(self, *, which_metric=None, concentation_timestep=None,
-                     log_concentrations=False, log_lower_bound=-12):
+                     log_concentrations=False, log_lower_bound=-12,
+                     plotter=pv.Plotter, highlight_locations=None):
         """
         Visualize the smoke source in 3D
 
@@ -244,16 +246,24 @@ class SmokeSource():
             Display the log concentrations
         log_lower_bound : float
             The lower bound for displaying logged values
+        plotter : (pv.Plotter class) | (pv.PlotterITK class)
+            This gives you an option to try interactive plotting with
+            pv.PlotterITK. However, this severely limits other functionality
+        highlight_locations : ArrayLike
+            Locations in 3D as (x, y, z, x, y, z, ...)
         """
         if which_metric is None and concentation_timestep is None:
             smoke_logger.info("Showing the metric")
-            visualize_3D(self.XYZ, self.metric)
+            metric = self.metric
+            stitle = "Metric"
         elif which_metric == "time_to_alarm":
             smoke_logger.info("Showing the time to alarm")
-            visualize_3D(self.XYZ, self.time_to_alarm)
+            metric =  self.time_to_alarm
+            stitle = "Time to alarm"
         elif which_metric == "max_concentration":
             smoke_logger.info("Showing the max concentration")
-            visualize_3D(self.XYZ, self.max_concentration)
+            metric = self.max_concentration,
+            stitle = "Max concentration"
         elif isinstance(concentation_timestep, int):
             timestep_concentrations = self.concentrations[:, concentation_timestep]
 
@@ -265,10 +275,19 @@ class SmokeSource():
                 timestep_concentrations = np.clip(timestep_concentrations,
                                                   a_min=log_lower_bound,
                                                   a_max=None)
-
-            visualize_3D(self.XYZ, timestep_concentrations)
+            stitle = f"Log concentrations at timestep {concentation_timestep}" \
+                     if log_concentrations else \
+                     f"Concentrations at timestep {concentation_timestep}"
+            metric = timestep_concentrations
         else:
             raise ValueError("Invalid arguments")
+
+        return visualize_3D_with_highlights(self.XYZ,
+                                           metric,
+                                           stitle=stitle,
+                                           highlight_locations=highlight_locations,
+                                           plotter=plotter(),
+                                           is_parameterized=False)
 
     def visualize_summary_statistics(self, quantiles=(0, 0.75, 0.9, 0.99, 0.999, 0.9999, 1)):
         """
