@@ -264,6 +264,10 @@ class SmokeSource():
             smoke_logger.info("Showing the max concentration")
             metric = self.max_concentration,
             stitle = "Max concentration"
+        elif which_metric == "alarmed":
+            smoke_logger.info("Showing alarmed")
+            metric = self.alarmed[:, concentation_timestep]
+            stitle = f"Alarmed at timestep {concentation_timestep}"
         elif isinstance(concentation_timestep, int):
             timestep_concentrations = self.concentrations[:, concentation_timestep]
 
@@ -374,14 +378,14 @@ class SmokeSource():
             print(f"3D, {threeD_description}")
             print("------------")
 
-    def get_closest_points(self, points, parametrized =True):
+    def get_closest_points(self, points, parameterized=True):
         """
         Return the XYZ point and corresponding parameterization for the nearest
         simulated point to the final optimized location.
 
         Does not currently accept masked data
         """
-        if parametrized:
+        if parameterized:
             dimensionality = self.get_parameterization_dimensionality()
         else:
             dimensionality = 3
@@ -392,15 +396,15 @@ class SmokeSource():
             point = points[i:i + dimensionality]
             closest_parameterized_XYZs.append(
                 self.get_closest_single_point(point,
-                                              parametrized=parametrized))
+                                              parameterized=parameterized))
         return closest_parameterized_XYZs
 
-    def get_closest_single_point(self, point, parametrized=True):
+    def get_closest_single_point(self, point, parameterized=True):
         """
         Get the parameterized and coresponding XYZ point closest to the
         location
         """
-        if parametrized:
+        if parameterized:
             diffs = self.parameterized_locations - point
         else:
             diffs = self.XYZ - point

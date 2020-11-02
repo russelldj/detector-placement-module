@@ -81,7 +81,7 @@ def evaluate_locations(locations,
     NUM_DETECTORS = 3
 
     parameterized_XYZ_points = sources[0].get_closest_points(locations,
-                                                         parametrized=False)
+                                                             parameterized=parameterized)
     parameterized_points = [d["parameterized"] for
                             d in parameterized_XYZ_points]
 
@@ -109,7 +109,7 @@ def evaluate_locations(locations,
 
 def optimize(sources,
              num_detectors=1,
-             function_type="worst_case",
+             function_type="worst_case_TTA",
              bounds=None,
              bad_sources=None,
              vis=True,
@@ -217,7 +217,12 @@ def visualize_single_objective_problem(objective_function,
 
     visualize_sources(sources, final_locations)
     # visualize each time to alarm with the final locations
-    [visualize_3D_with_final(source, final_locations) for source in sources]
+    [visualize_3D_with_highlights(XYZ=source.XYZ,
+                                  metric=source.metric,
+                                  highlight_locations=final_locations,
+                                  is_parameterized=True,
+                                  smoke_source=source)
+                                  for source in sources]
 
     max_val = max([np.amax(source.metric) for source in sources])
 

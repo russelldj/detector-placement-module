@@ -75,6 +75,7 @@ def plot_sphere(phi, theta, cs, r=1):
 def visualize_3D_with_highlights(XYZ, metric, *, highlight_locations=None,
                             label="3D visualization of the time to alarm",
                             plotter=None, is_parameterized=True,
+                            smoke_source=None,
                             **kwargs):
     """
     XYZ : np.array, (n, 3)
@@ -99,6 +100,8 @@ def visualize_3D_with_highlights(XYZ, metric, *, highlight_locations=None,
                            **kwargs) # Pass on any keyword arguments
     if highlight_locations is not None:
         if is_parameterized:
+            if smoke_source is None:
+                raise ValueError("Smoke source cannot be None for paramterized data")
             closest_params_XYZs = smoke_source.get_closest_points(highlight_locations)
             XYZs = [point['XYZ'] for point in closest_params_XYZs]
         else:
