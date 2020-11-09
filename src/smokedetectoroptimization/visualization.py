@@ -4,7 +4,7 @@ import logging
 from mpl_toolkits import mplot3d
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
-from scipy.optimize import minimize, differential_evolution, rosen, rosen_der, fmin_l_bfgs_b
+from scipy.optimize import minimize, differential_evolution, rosen, rosen_der, fmin_l_bfgs_b, linear_sum_assignment
 import matplotlib.animation as animation
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -55,6 +55,33 @@ def show_optimization_runs(all_funcs_values):
 
     # plot the summary statistics
 
+def show_stability(final_3D_locs):
+    num_runs = len(final_3D_locs)
+    dists = np.zeros((num_runs, num_runs))
+    for i in range(num_runs):
+        for j in range(i):
+            dists[i, j] = _compute_source_dist(final_3D_locs[i],
+                                               final_3D_locs[j])
+            dists[j, i] = dists[i, j] # symetry
+
+    cb = plt.imshow(dists)
+    plt.colorbar(cb)
+    plt.show()
+
+
+def _compute_source_dist(source_1, source_2):
+    if len(source_1) != len(source_2):
+        raise ValueError("The lenth of the two sources were different")
+
+    num_sources = len(source_1)
+    dists = np.zeros((num_sources, num_sources))
+
+    for i in range(num_sources):
+        for j in range(num_sources):
+            dists[i, j] = np.linalg.norm(source_1[i] - source_2[j])
+    row_inds, col_inds = linear_sum_assignment(dists)
+    total_cost = (dists[row_inds, col_inds]).sum()
+    return total_cost
 
 def plot_xy(xy):
     plt.scatter(xy[::2], xy[1::2])

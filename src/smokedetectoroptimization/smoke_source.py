@@ -46,6 +46,7 @@ class SmokeSource():
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
+        # TODO implement caching with ubelt
         smoke_logger.info(f"Beginning to load {data_path}")
         if os.path.isfile(data_path):
             self.load_file(data_path)

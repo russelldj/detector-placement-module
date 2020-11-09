@@ -21,7 +21,8 @@ from .constants import (SINGLE_OBJECTIVE_FUNCTIONS, MULTI_OBJECTIVE_FUNCTIONS,
 from .visualization import (visualize_slices, visualize_sources,
                             visualize_3D_with_highlights,
                             show_optimization_statistics,
-                            show_optimization_runs)
+                            show_optimization_runs,
+                            show_stability)
 
 from smokedetectoroptimization import __version__
 
@@ -51,11 +52,15 @@ def evaluate_optimization(sources,
         statistics["final_vals"].append(res.iter_vals[0])
         statistics["final_locs"].append(res.x)
         statistics["num_iters"].append(res.nit)
+        closest_points = sources[0].get_closest_points(res.x, parameterized=True)
+        closest_points = [c["XYZ"] for c in closest_points]
+        statistics["final_locs_3D"].append(closest_points)
     if visualize_summary:
         show_optimization_statistics(statistics["final_vals"],
                                      statistics["num_iters"],
                                      statistics["final_locs"])
         show_optimization_runs(statistics["iter_vals"])
+        show_stability(statistics["final_locs_3D"])
     return statistics
 
 
