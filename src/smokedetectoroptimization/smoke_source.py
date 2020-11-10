@@ -23,10 +23,16 @@ class SmokeSource():
 
     def __init__(self,
                  data_path,
+                 mesh_file=None,
                  alarm_threshold=ALARM_THRESHOLD,
                  parameterization="phi_theta",
                  vis=False,
                  write_figs=PAPER_READY):
+        """
+        mesh_file: str | path
+            Path to the mesh connecting the vertices
+        """
+
         self.data_path = data_path
 
         self.concentrations = None
@@ -44,6 +50,11 @@ class SmokeSource():
             parameterization=parameterization,
             vis=vis,
             write_figs=write_figs)
+
+        if mesh_file is not None:
+            self.mesh = pv.read(mesh_file)
+        else:
+            self.mesh = None
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
@@ -300,11 +311,14 @@ class SmokeSource():
         else:
             raise ValueError("Invalid arguments")
 
+        instantiated_plotter = plotter()
+        if self.mesh is not None:
+            instantiated_plotter.add_mesh(self.mesh)
         return visualize_3D_with_highlights(self.XYZ,
                                            metric,
                                            stitle=stitle,
                                            highlight_locations=highlight_locations,
-                                           plotter=plotter(),
+                                           plotter=instantiated_plotter,
                                            is_parameterized=False)
 
     def visualize_summary_statistics(self, quantiles=(0, 0.75, 0.9, 0.99, 0.999, 0.9999, 1)):
