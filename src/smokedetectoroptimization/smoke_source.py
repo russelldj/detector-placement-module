@@ -9,6 +9,7 @@ import io
 import logging
 import matplotlib.pyplot as plt
 import pyvista as pv
+import ubelt as ub
 
 from .constants import (ALARM_THRESHOLD, PAPER_READY, NEVER_ALARMED_MULTIPLE, NUM_INTERPOLATION_SAMPLES)
 from .functions import convert_to_spherical_from_points
@@ -46,17 +47,29 @@ class SmokeSource():
 
     def load_data(self, data_path):
         """Load the data from Fluent export. Checks file or dir"""
-        # TODO implement caching with ubelt
+
         smoke_logger.info(f"Beginning to load {data_path}")
-        if os.path.isfile(data_path):
-            self.load_file(data_path)
-        elif os.path.isdir(data_path):
-            self.load_directory(data_path)
-        else:
-            raise ValueError(
-                f"data path {data_path} was niether a directory nor a file.")
-        assert self.concentrations is not None
-        assert self.XYZ is not None
+        XYZ_cacher = ub.Cacher(f'{data_path}_XYZ',
+            cfgstr=ub.hash_data('dependencies'))
+        concentrations_cacher = ub.Cacher(f'{data_path}_concentration',
+            cfgstr=ub.hash_data('dependencies'))
+
+        self.XYZ = XYZ_cacher.tryload()
+        self.concentrations = concentrations_cacher.tryload()
+
+        if self.XYZ is None or self.concentrations is None:
+            if os.path.isfile(data_path):
+                self.load_file(data_path)
+            elif os.path.isdir(data_path):
+                self.load_directory(data_path)
+            else:
+                raise ValueError(
+                    f"data path {data_path} was niether a directory nor a file.")
+            assert self.concentrations is not None
+            assert self.XYZ is not None
+            XYZ_cacher.save(self.XYZ)
+            concentrations_cacher.save(self.concentrations)
+
         smoke_logger.info(f"done loading {data_path}")
 
     def load_file(self, data_file):
