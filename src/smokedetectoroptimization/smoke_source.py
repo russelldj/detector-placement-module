@@ -18,6 +18,68 @@ from .visualization import visualize_metric, visualize_3D, visualize_3D_with_hig
 smoke_logger = logging.getLogger("smoke")
 
 
+class SmokeSourceSet():
+    """Represents a group of smoke sources for the same space"""
+
+    def __init__(self,
+                 data_paths,
+                 mesh_file=None,
+                 source_locations=None,
+                 **kwargs):
+        """
+        data_paths : ArrayLike[str | path]
+            The data to load
+        mesh_file : str | path
+            The mesh file
+        source_locations: ArrayLike[ArrayLike]
+            List of (x, y, z) lists representing the locations in 3D of the
+            corresponding smoke source
+        **kwargs:
+            Keyword arguments to be passed to the smoke source __init__ method
+        """
+
+        self.source_locations = source_locations
+
+        if (self.source_locations is not None and
+            len(self.source_locations) != len(data_paths)):
+            raise ValueError("Length of data_paths and source_locations must be the same")
+
+        if mesh_file is not None:
+            self.mesh = pv.read(mesh_file)
+        else:
+            self.mesh = None
+
+        self.sources = []
+        for data_path in data_paths:
+            # create a smoke source and then get it's time to alarm with a given parameterization
+            print(f"Loading {data_path}")
+            self.sources.append(SmokeSource(data_path,
+                                       **kwargs))
+
+    def source_list(self):
+        return self.sources
+
+    def visualize_smoke_source(self, detector_locations=None, mesh_opacity=0.8,
+                               plotter=pv.Plotter()):
+        if self.mesh is None:
+            raise ValueError("Can't visualize without a mesh file")
+
+        plotter.add_mesh(self.mesh, opacity=mesh_opacity)
+
+        if self.source_locations is not None:
+            for source_location in self.source_locations:
+                highlight = pv.Sphere(radius=0.15, center=source_location)
+                plotter.add_mesh(highlight, color="red")
+
+        if detector_locations is not None:
+            for detector_location in detector_locations:
+                highlight = pv.Sphere(radius=0.15, center=detector_location)
+                plotter.add_mesh(highlight, color="green")
+
+        plotter.show()
+
+
+
 class SmokeSource():
     """Represents the smoke source and its metric values"""
 
