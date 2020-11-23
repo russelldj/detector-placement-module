@@ -170,15 +170,21 @@ def visualize_3D(XYZ, metric,
 
     # This will colormap the values
     cmap = plt.cm.get_cmap("inferno")
+
+    if len(metric.shape) == 2 and (metric.shape[1] in [3, 4]):
+        is_rgb = True
+    else:
+        is_rgb = False
+
     if isinstance(plotter, pv.PlotterITK):
-        plotter.add_mesh(mesh, scalars=metric)
+        plotter.add_mesh(mesh, scalars=metric, rgb=is_rgb)
         if show:
             return plotter.show(True)
         else:
             return plotter
     else:
         plotter.add_mesh(mesh, scalars=metric,
-                     stitle=stitle, cmap=cmap)
+                     stitle=stitle, cmap=cmap, rgb=is_rgb)
         # Leave the option to not show so other data can be added easily
         if show:
             plotter.show(screenshot="vis.png")

@@ -8,6 +8,7 @@ import numpy as np
 import io
 import logging
 import matplotlib.pyplot as plt
+from sklearn.manifold import MDS, TSNE
 import pyvista as pv
 import ubelt as ub
 
@@ -25,6 +26,7 @@ class SmokeSourceSet():
                  data_paths,
                  mesh_file=None,
                  source_locations=None,
+                 validate_geometry=False,
                  **kwargs):
         """
         data_paths : ArrayLike[str | path]
@@ -34,6 +36,8 @@ class SmokeSourceSet():
         source_locations: ArrayLike[ArrayLike]
             List of (x, y, z) lists representing the locations in 3D of the
             corresponding smoke source
+        validate_geometry: bool
+            Should you check that the XYZ is same
         **kwargs:
             Keyword arguments to be passed to the smoke source __init__ method
         """
@@ -55,6 +59,18 @@ class SmokeSourceSet():
             print(f"Loading {data_path}")
             self.sources.append(SmokeSource(data_path,
                                        **kwargs))
+
+        if validate_geometry:
+            for i, source in enumerate(self.sources):
+                for j in range(i):
+                    other_source = self.sources[j].XYZ
+                    if not np.allclose(source.XYZ.shape, other_source.shape):
+                        raise ValueError(f"Data from {data_paths[i]} and {data_paths[j]} have different number of points")
+
+                    if not np.allclose(source.XYZ, other_source):
+                        raise ValueError(f"Data from {data_paths[i]} and {data_paths[j]} have different 3D geometry")
+
+
 
     def source_list(self):
         return self.sources
@@ -100,6 +116,7 @@ class SmokeSource():
         self.concentrations = None
         self.alarmed = None
         self.XYZ = None
+        self.unitized_XYZ = None
         self.parameterized_locations = None
         self.axis_labels = None
         self.time_to_alarm = None
@@ -260,6 +277,14 @@ class SmokeSource():
                 self.XYZ[:, 0], self.XYZ[:, 1], self.XYZ[:, 2])
             self.parameterized_locations = np.stack((phi, theta), axis=1)
             self.axis_labels = ("phi locations", "theta locations")
+        elif parameterization == "tsne":
+            embedding = TSNE(n_components=2)
+            self.parameterized_locations = embedding.fit_transform(self.XYZ)
+            self.axis_labels = ("TSNE axis 1", "TSNE axis 2")
+        elif parameterization == "mds":
+            embedding = MDS(n_components=2)
+            self.parameterized_locations = embedding.fit_transform(self.XYZ)
+            self.axis_labels = ("MDS axis 1", "MDS axis 2")
         else:
             raise ValueError(
                 f"parameterization {parameterization} wasn't valid")
@@ -355,6 +380,14 @@ class SmokeSource():
             smoke_logger.info("Showing alarmed")
             metric = self.alarmed[:, concentation_timestep]
             stitle = f"Alarmed at timestep {concentation_timestep}"
+        elif which_metric == "index":
+            smoke_logger.info("Showing alarmed")
+            metric = np.arange(self.XYZ.shape[0])
+            stitle = "Index"
+        elif which_metric == "XYZ":
+            smoke_logger.info("Showing alarmed")
+            metric = self.get_unitized_XYZ()
+            stitle = "Index"
         elif isinstance(concentation_timestep, int):
             timestep_concentrations = self.concentrations[:, concentation_timestep]
 
@@ -391,6 +424,7 @@ class SmokeSource():
         for line, quant in zip(data_quantiles, quantiles):
             plt.plot(line, label=f"{quant}")
         plt.legend()
+        plt.yscale("log")
         plt.xlabel("Timestep")
         plt.ylabel("Concentration")
         plt.title("Concentration ")
@@ -413,6 +447,25 @@ class SmokeSource():
         plt.ylabel("Fraction of points alarmed")
         plt.show()
 
+    def visualize_parameterization(self, fraction=1):
+        """
+        Show the different parameterizations
+        """
+        self.visualize_3D(which_metric="XYZ")
+        unitized_XYZ = self.get_unitized_XYZ()
+        parameterized = self.parameterized_locations
+        num_points = parameterized.shape[0]
+        if fraction < 1:
+            selected = np.random.choice(num_points,
+                                        size=(int(num_points * fraction),))
+            parameterized = parameterized[selected, :]
+            unitized_XYZ = unitized_XYZ[selected, :]
+
+        plt.scatter(parameterized[:, 0], parameterized[:, 1], c=unitized_XYZ)
+        plt.xlabel(self.axis_labels[0])
+        plt.ylabel(self.axis_labels[1])
+        plt.title("Original unitized XYZ shown as RGB colors")
+        plt.show()
 
     def compute_time_to_alarm(self, alarm_threshold):
         """This actually does the computation for time to alarm"""
@@ -482,8 +535,7 @@ class SmokeSource():
 
         # Store the tuples of parameterized and XYZ locations
         closest_parameterized_XYZs = []
-        for i in range(0, len(points), dimensionality):
-            point = points[i:i + dimensionality]
+        for point in points:
             closest_parameterized_XYZs.append(
                 self.get_closest_single_point(point,
                                               parameterized=parameterized))
@@ -505,7 +557,8 @@ class SmokeSource():
         closest_XYZ = self.XYZ[min_loc, :]
 
         return {"parameterized" : closest_parameterization,
-                "XYZ" : closest_XYZ}
+                "XYZ" : closest_XYZ,
+                "index" : min_loc}
 
     def get_parameterization_dimensionality(self):
         """get the parameterization of the underlying parameterization"""
@@ -513,6 +566,18 @@ class SmokeSource():
             raise ValueError("Load data first")
 
         return self.parameterized_locations.shape[1]
+
+    def get_unitized_XYZ(self):
+        if self.unitized_XYZ is not None:
+            return self.unitized_XYZ
+
+        if self.XYZ is None:
+            raise ValueError("Load data first")
+
+        mins = self.XYZ.min(axis=0)
+        ptp = self.XYZ.ptp(axis=0)
+        self.unitized_XYZ = (self.XYZ - mins) / ptp
+        return self.unitized_XYZ
 
     def set_infeasible(self, infeasible_region):
         """Set some region of the XYZ space as infeasible"""

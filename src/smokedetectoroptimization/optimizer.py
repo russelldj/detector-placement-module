@@ -89,7 +89,8 @@ def evaluate_locations(locations,
                                                              parameterized=parameterized)
     parameterized_points = [d["parameterized"] for
                             d in parameterized_XYZ_points]
-
+    closest_indices = [d["index"] for
+                       d in parameterized_XYZ_points]
     # Flatten the nested list of locations
     parameterized_points = sum([x.tolist() for x in parameterized_points], [])
 
@@ -108,7 +109,14 @@ def evaluate_locations(locations,
     objective_value = objective_function(parameterized_points)
     if vis:
         for source in sources:
-            pass
+            for index in closest_indices:
+                plt.plot(source.concentrations[index, :],
+                         label=f"{source.XYZ[index, :]}")
+            plt.yscale("log")
+            plt.legend()
+            plt.xlabel("Timestep")
+            plt.ylabel("Concentration")
+            plt.show()
 
     return objective_value
 
