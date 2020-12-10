@@ -374,7 +374,7 @@ class SmokeSource():
             stitle = "Time to alarm"
         elif which_metric == "max_concentration":
             smoke_logger.info("Showing the max concentration")
-            metric = self.max_concentration,
+            metric = self.max_concentration
             stitle = "Max concentration"
         elif which_metric == "alarmed":
             smoke_logger.info("Showing alarmed")
